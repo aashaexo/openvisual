@@ -1,0 +1,6 @@
+dist
+node_modules
+public/fonts
+src-tauri/target
+src-tauri/gen
+package-lock.json

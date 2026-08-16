@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A superseded run has nothing useful left to say.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # postinstall vendors Excalidraw's fonts into public/fonts, which the
+      # build needs — so this cannot be swapped for an install-less step.
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npx vite build
+
+      - name: Assert the bundle reaches no CDN
+        run: |
+          if grep -rq "esm\.sh\|unpkg\.com\|googleapis\.com" dist/assets/*.js; then
+            echo "::error::A remote asset host leaked into the production bundle."
+            grep -ro "esm\.sh\|unpkg\.com\|googleapis\.com" dist/assets/*.js | sort -u
+            exit 1
+          fi
+          echo "No remote asset hosts in the bundle."
+
+      - name: Assert no cloud AI provider is referenced
+        run: |
+          if grep -rniE "openai|anthropic|gemini|cloudflare ai|supabase|firebase" src/ src-tauri/src/; then
+            echo "::error::A cloud provider reference appeared in the source."
+            exit 1
+          fi
+          echo "No cloud provider references."
+
+  rust:
+    name: Rust backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install Tauri's Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            build-essential curl wget file libxdo-dev libssl-dev
+
+      # tauri::generate_context! embeds the frontend at compile time, so the
+      # bundle has to exist before cargo runs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+
+      # Clippy compiles as it lints, so it runs first: a genuine compile error
+      # is far more interesting than a formatting nit.
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: src-tauri
+
+      - run: cargo fmt --all --check
+        working-directory: src-tauri

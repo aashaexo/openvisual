@@ -1,0 +1,7 @@
+# GitHub requires an absolute URL here, so the owner/repo below is a placeholder —
+# update it to the real slug when this repository is published.
+blank_issues_enabled: false
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/OWNER/openvisual-local/blob/main/CONTRIBUTING.md
+    about: Setup, the dev loop, the quality gates, and the local-first rules a change has to respect. Read this before opening a pull request.

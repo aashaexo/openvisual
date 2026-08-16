@@ -1,0 +1,65 @@
+name: Feature request
+description: Suggest an improvement to OpenVisual Local.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good feature requests start from a problem rather than a solution. Tell us what you were
+        trying to do and where the app got in your way.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation, not the feature. What were you doing when this came up?
+      placeholder: When I paste meeting notes, the result is always a flowchart even though the content is a comparison.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should the app do instead? Be specific about the behaviour you want.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: Other approaches, workarounds you are using today, or why the obvious fix does not work.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Sketches, screenshots, example input and the diagram you wish it produced.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: local-first
+    attributes:
+      label: Local-first check
+      description: >
+        OpenVisual Local has no cloud services, no telemetry, no analytics, no remote assets and no
+        API keys. The only network destination is the local Ollama server at 127.0.0.1:11434.
+        Requests that require anything else cannot be accepted.
+      options:
+        - label: This idea keeps the app fully local — it needs no hosted service, no remote asset and no data leaving the machine.
+          required: true
+
+  - type: checkboxes
+    id: housekeeping
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I agree to follow this project's Code of Conduct.
+          required: true

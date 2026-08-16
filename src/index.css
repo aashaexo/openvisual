@@ -1,0 +1,259 @@
+@import "tailwindcss";
+@import "@excalidraw/excalidraw/index.css";
+
+/*
+ * Theme variables are written onto <html> at runtime by applyThemeVariables().
+ * The values here are the Minimal theme, so the first paint is never unstyled.
+ */
+:root {
+  --ov-bg: #f7f7f8;
+  --ov-panel: #ffffff;
+  --ov-panel-alt: #fafafa;
+  --ov-border: #e5e7eb;
+  --ov-text: #111827;
+  --ov-muted: #6b7280;
+  --ov-accent: #4f46e5;
+  --ov-accent-contrast: #ffffff;
+  --ov-danger: #b91c1c;
+  --ov-focus: #4f46e5;
+
+  --ov-radius: 10px;
+  --ov-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ov-bg);
+  color: var(--ov-text);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A single, always-visible focus treatment for every interactive control. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ov-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@layer components {
+  .ov-panel {
+    background: var(--ov-panel);
+    border-color: var(--ov-border);
+  }
+
+  .ov-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: var(--ov-radius);
+    border: 1px solid var(--ov-border);
+    background: var(--ov-panel);
+    color: var(--ov-text);
+    padding: 0.5rem 0.85rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      transform 120ms ease;
+  }
+
+  .ov-btn:hover:not(:disabled) {
+    background: var(--ov-panel-alt);
+    border-color: color-mix(in srgb, var(--ov-accent) 35%, var(--ov-border));
+  }
+
+  .ov-btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .ov-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ov-btn-primary {
+    background: var(--ov-accent);
+    border-color: var(--ov-accent);
+    color: var(--ov-accent-contrast);
+  }
+
+  .ov-btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ov-accent) 88%, black);
+    border-color: color-mix(in srgb, var(--ov-accent) 88%, black);
+  }
+
+  .ov-btn-danger {
+    color: var(--ov-danger);
+    border-color: color-mix(in srgb, var(--ov-danger) 35%, var(--ov-border));
+  }
+
+  .ov-btn-icon {
+    padding: 0.45rem;
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+
+  .ov-field {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ov-muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .ov-input,
+  .ov-select,
+  .ov-textarea {
+    width: 100%;
+    border-radius: var(--ov-radius);
+    border: 1px solid var(--ov-border);
+    background: var(--ov-panel);
+    color: var(--ov-text);
+    padding: 0.5rem 0.65rem;
+    font-size: 0.875rem;
+  }
+
+  .ov-textarea {
+    resize: none;
+    line-height: 1.55;
+  }
+
+  .ov-input::placeholder,
+  .ov-textarea::placeholder {
+    color: color-mix(in srgb, var(--ov-muted) 80%, transparent);
+  }
+
+  .ov-code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    background: var(--ov-panel-alt);
+    border: 1px solid var(--ov-border);
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    color: var(--ov-text);
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .ov-segment {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border-radius: var(--ov-radius);
+    border: 1px solid var(--ov-border);
+    background: var(--ov-panel-alt);
+  }
+
+  .ov-segment button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--ov-muted);
+    border-radius: calc(var(--ov-radius) - 3px);
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .ov-segment button[aria-pressed="true"] {
+    background: var(--ov-panel);
+    color: var(--ov-text);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  }
+}
+
+/* Tooltips for icon-only controls, without a third-party dependency. */
+.ov-tip {
+  position: relative;
+}
+
+.ov-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--ov-text);
+  color: var(--ov-panel);
+  font-size: 0.72rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 60;
+}
+
+.ov-tip:hover::after,
+.ov-tip:focus-visible::after {
+  opacity: 1;
+}
+
+/* Excalidraw sits inside our own chrome, so it should not paint its own frame. */
+.excalidraw .App-menu__left {
+  box-shadow: none;
+}
+
+/*
+ * The library sidebar's "browse libraries" action opens excalidraw.com. This
+ * app makes exactly one promise — nothing leaves the machine — so the entry
+ * point is removed rather than left as a trap. Shapes are still drawn by hand
+ * with the normal tools.
+ */
+.excalidraw .default-sidebar-trigger {
+  display: none;
+}
+
+/*
+ * Excalidraw's dark mode inverts the canvas so that scenes authored in light
+ * colours stay readable. Our themes author their colours directly — the dark
+ * theme really is dark — so the inversion is switched off while the dark UI
+ * chrome is kept.
+ */
+.excalidraw.theme--dark {
+  --theme-filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes ov-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ov-spinner {
+  animation: ov-spin 900ms linear infinite;
+}

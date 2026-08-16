@@ -1,0 +1,78 @@
+name: Release
+
+# Tag a commit to publish binaries:
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Build ${{ matrix.label }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            label: macOS (Apple silicon)
+            args: --target aarch64-apple-darwin
+          - platform: macos-latest
+            label: macOS (Intel)
+            args: --target x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            label: Linux
+            args: ""
+          - platform: windows-latest
+            label: Windows
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install Tauri's Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            build-essential curl wget file libxdo-dev libssl-dev
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signing is deliberately not configured. Until the project has users
+          # worth the Apple Developer fee, releases ship unsigned and the README
+          # documents the Gatekeeper workaround.
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: OpenVisual Local ${{ github.ref_name }}
+          releaseBody: |
+            Runs entirely on your own machine with a local Ollama model.
+            No account, no API key, nothing sent to a server.
+
+            **macOS:** the app is unsigned, so the first launch needs
+            right-click → Open rather than a double-click.
+
+            See the assets below for your platform.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

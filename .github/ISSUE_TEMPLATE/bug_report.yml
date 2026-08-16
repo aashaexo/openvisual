@@ -1,0 +1,127 @@
+name: Bug report
+description: Something in OpenVisual Local behaves incorrectly.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file this.
+
+        Before you start: please reproduce the problem with text you are happy to publish.
+        This app keeps your input on your machine — a public issue tracker does not.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the actual behaviour. Include the exact error message if there was one.
+      placeholder: The diagram rendered with two nodes on top of each other.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: Nodes should never overlap.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, plus the input text you used if it is safe to share.
+      placeholder: |
+        1. Paste the text below into the input panel
+        2. Choose diagram type "hierarchy"
+        3. Click Generate
+        4. Observe the overlap in the bottom row
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Name and version.
+      placeholder: macOS 15.2 (Apple Silicon) / Windows 11 / Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: OpenVisual Local version
+      description: The release you installed, or the `version` field in `package.json` if you built from source.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: ollama-version
+    attributes:
+      label: Ollama version
+      description: Output of `ollama --version`.
+      placeholder: "0.6.2"
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model used
+      description: The model selected in the app. Copy the exact tag from `ollama list`.
+      placeholder: "qwen3:4b"
+      value: "qwen3:4b"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ollama-running
+    attributes:
+      label: Was `ollama serve` running?
+      options:
+        - "Yes — Ollama was running and reachable"
+        - "No — Ollama was not running"
+        - "Not sure"
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did you see this?
+      options:
+        - "Desktop app (npm run tauri:dev or a built binary)"
+        - "Browser during development (npm run dev)"
+        - "Both"
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Any relevant log lines. Redact anything you would not publish.
+      render: text
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I have not pasted private, confidential or personal text into this report.
+          required: true
+
+  - type: checkboxes
+    id: housekeeping
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I agree to follow this project's Code of Conduct.
+          required: true
