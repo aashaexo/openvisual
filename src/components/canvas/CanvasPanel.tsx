@@ -29,7 +29,8 @@ export function CanvasPanel() {
     <section className="relative flex h-full min-w-0 flex-1 flex-col">
       <CanvasToolbar />
 
-      <div className="relative min-h-0 flex-1">
+      {/* overflow-hidden so the empty state can never paint over the toolbar. */}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <div className="absolute inset-0" aria-label="Diagram canvas">
           <Excalidraw
             excalidrawAPI={(api: ExcalidrawImperativeAPI) => setCanvasApi(api)}

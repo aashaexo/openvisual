@@ -36,8 +36,10 @@ export function CanvasToolbar() {
   const hasDiagram = elements.length > 0;
 
   return (
+    // One row that scrolls sideways rather than wrapping: a toolbar that grows
+    // taller as the window narrows would eat the canvas it belongs to.
     <div
-      className="flex flex-wrap items-center gap-2 border-b px-3 py-2"
+      className="flex shrink-0 items-center gap-2 overflow-x-auto border-b px-3 py-2"
       style={{ background: "var(--ov-panel)", borderColor: "var(--ov-border)" }}
     >
       <label className="sr-only" htmlFor="ov-project-name">
@@ -58,7 +60,7 @@ export function CanvasToolbar() {
         aria-hidden="true"
       />
 
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         <IconButton label="Undo" onClick={() => sendShortcut("z", false)} disabled={!hasDiagram}>
           <UndoIcon />
         </IconButton>
@@ -82,7 +84,7 @@ export function CanvasToolbar() {
         aria-hidden="true"
       />
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-1.5">
         <button
           type="button"
           className="ov-btn"
@@ -122,8 +124,12 @@ export function CanvasToolbar() {
         </button>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        <span className="text-xs" style={{ color: "var(--ov-muted)" }} aria-live="polite">
+      <div className="ml-auto flex shrink-0 items-center gap-2 pl-2">
+        <span
+          className="whitespace-nowrap text-xs"
+          style={{ color: "var(--ov-muted)" }}
+          aria-live="polite"
+        >
           {!storageAvailable
             ? "Local saving unavailable"
             : saveStatus === "saving"
