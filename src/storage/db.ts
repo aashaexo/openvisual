@@ -1,6 +1,5 @@
 import { openDB } from "idb";
 import type { DBSchema, IDBPDatabase } from "idb";
-import type { SavedProject } from "@/types";
 import { createAppError } from "@/utils/errors";
 import { log } from "@/utils/logger";
 
@@ -10,14 +9,19 @@ import { log } from "@/utils/logger";
  */
 
 export const DB_NAME = "openvisual-local";
-export const DB_VERSION = 1;
+/** 2 turned a project from one diagram into an ordered deck of slides. */
+export const DB_VERSION = 2;
 export const PROJECT_STORE = "projects";
 export const UPDATED_INDEX = "by-updated";
 
 export interface OpenVisualDB extends DBSchema {
   projects: {
     key: string;
-    value: SavedProject;
+    /**
+     * Deliberately `unknown`: a read can still hand back a version-1 record, so
+     * every caller has to put it through `migrateProject` before trusting it.
+     */
+    value: unknown;
     /** ISO timestamps sort lexicographically, so this index is chronological too. */
     indexes: { "by-updated": string };
   };
@@ -75,8 +79,13 @@ async function open(): Promise<IDBPDatabase<OpenVisualDB>> {
         created.createIndex(UPDATED_INDEX, "updatedAt");
         return;
       }
-      // An interrupted first run can leave the store behind without its index,
-      // and nothing would ever create it: version 1 never upgrades again.
+      // Version-1 rows are left exactly as they were written. Rewriting them
+      // here would mean loading every canvas inside the upgrade transaction,
+      // which blocks the app and cannot be resumed if it fails halfway;
+      // `migrateProject` upgrades each record as it is read instead.
+      //
+      // An interrupted first run can also leave the store behind without its
+      // index, and only this callback can put it back.
       const store = tx.objectStore(PROJECT_STORE);
       if (!store.indexNames.contains(UPDATED_INDEX)) {
         store.createIndex(UPDATED_INDEX, "updatedAt");

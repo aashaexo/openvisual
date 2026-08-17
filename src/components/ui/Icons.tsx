@@ -148,6 +148,67 @@ export const LockIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+export const CursorIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M5 3l14 8-6.5 1.8L9.5 19 5 3z" />
+  </svg>
+);
+
+export const SquareIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <rect x="4" y="5" width="16" height="14" rx="2.5" />
+  </svg>
+);
+
+export const CircleIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <ellipse cx="12" cy="12" rx="8.5" ry="7" />
+  </svg>
+);
+
+export const ArrowIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M4 18L20 6M20 6h-6M20 6v6" />
+  </svg>
+);
+
+export const PenIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M4 20l4-1 9.5-9.5a2.1 2.1 0 0 0-3-3L5 16l-1 4z" />
+  </svg>
+);
+
+export const TextIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M5 6h14M12 6v13M9 19h6" />
+  </svg>
+);
+
+export const SlidesIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <rect x="3" y="5" width="13" height="10" rx="2" />
+    <path d="M19 8v9a2 2 0 0 1-2 2H7" />
+  </svg>
+);
+
+export const PlayIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M8 5l11 7-11 7V5z" />
+  </svg>
+);
+
+export const ChevronLeftIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M15 5l-7 7 7 7" />
+  </svg>
+);
+
+export const ChevronRightIcon = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M9 5l7 7-7 7" />
+  </svg>
+);
+
 export const CloseIcon = ({ className }: IconProps) => (
   <svg {...base} className={className}>
     <path d="M6 6l12 12M18 6L6 18" />

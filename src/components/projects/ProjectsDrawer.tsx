@@ -155,7 +155,7 @@ export function ProjectsDrawer({ open, onClose }: ProjectsDrawerProps) {
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium">{project.name}</span>
                       <span className="block truncate text-xs" style={{ color: "var(--ov-muted)" }}>
-                        {project.diagramSpec.type.replace("_", " ")} ·{" "}
+                        {project.slides.length} slide{project.slides.length === 1 ? "" : "s"} ·{" "}
                         {new Date(project.updatedAt).toLocaleString()}
                       </span>
                     </span>

@@ -5,12 +5,15 @@ export type { OpenVisualDB } from "@/storage/db";
 
 export {
   UNTITLED_PROJECT_NAME,
+  UNTITLED_SLIDE_NAME,
   countProjects,
   createProjectId,
+  createSlideId,
   deleteProject,
   duplicateProject,
   getProject,
   listProjects,
+  migrateProject,
   renameProject,
   saveProject,
 } from "@/storage/projects";

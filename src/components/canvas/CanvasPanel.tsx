@@ -2,6 +2,8 @@ import { useEffect, useMemo } from "react";
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { CanvasToolbar } from "@/components/canvas/CanvasToolbar";
+import { CanvasTools } from "@/components/canvas/CanvasTools";
+import { SlideRail } from "@/components/canvas/SlideRail";
 import { EmptyState } from "@/components/canvas/EmptyState";
 import { ErrorBanner } from "@/components/canvas/ErrorBanner";
 import { Spinner } from "@/components/ui/Spinner";
@@ -69,6 +71,8 @@ export function CanvasPanel() {
           </Excalidraw>
         </div>
 
+        <CanvasTools />
+
         {!hasDiagram && status === "idle" && (
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center"
@@ -125,6 +129,8 @@ export function CanvasPanel() {
           </p>
         )}
       </div>
+
+      <SlideRail />
     </section>
   );
 }

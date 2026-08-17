@@ -3,7 +3,7 @@ import type { ExcalidrawElementSkeleton } from "@excalidraw/excalidraw/data/tran
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import type { DiagramSpec, NodeEmphasis } from "@/diagrams/schema";
 import type { DiagramLayout, PositionedNode } from "@/diagrams/layouts/types";
-import { NODE_BOX, TEXT_WIDTH_RATIO, TYPOGRAPHY } from "@/diagrams/typography";
+import { measureText, NODE_BOX, TEXT_WIDTH_RATIO, TYPOGRAPHY } from "@/diagrams/typography";
 import type { DiagramTheme, NodePalette, ThemeFont } from "@/themes";
 
 /**
@@ -64,6 +64,9 @@ export function convertLayoutToExcalidraw(
     intended.set(labelId(node.id), block.label);
     intended.set(descriptionId(node.id), block.description);
   }
+  for (const [id, box] of titleBoxes(spec)) {
+    intended.set(id, box);
+  }
 
   return elements.map((element) => {
     const box = intended.get(element.id);
@@ -77,6 +80,50 @@ interface TextBox {
   y: number;
   width: number;
   height: number;
+}
+
+/**
+ * Title and summary get an explicitly measured width.
+ *
+ * Excalidraw measures free text with whatever font is loaded at the moment the
+ * element is created. Web fonts arrive asynchronously, so a title created
+ * before Excalifont loads records a too-narrow width and then renders wider
+ * than its own bounds — which silently clips it out of exports and the
+ * presentation view. Our own measurement deliberately overestimates, so the
+ * recorded box always contains the glyphs.
+ */
+function titleBoxes(spec: DiagramSpec): Array<[string, TextBox]> {
+  const boxes: Array<[string, TextBox]> = [
+    [
+      "diagram-title",
+      {
+        x: TITLE_X,
+        y: titleTop(spec),
+        width: Math.ceil(measureText(spec.title, TYPOGRAPHY.title.fontSize)),
+        height: TYPOGRAPHY.title.lineHeight,
+      },
+    ],
+  ];
+
+  if (spec.summary) {
+    boxes.push([
+      "diagram-summary",
+      {
+        x: TITLE_X,
+        y: titleTop(spec) + TYPOGRAPHY.title.lineHeight + 6,
+        width: Math.ceil(measureText(spec.summary, TYPOGRAPHY.subtitle.fontSize)),
+        height: TYPOGRAPHY.subtitle.lineHeight,
+      },
+    ]);
+  }
+
+  return boxes;
+}
+
+const TITLE_X = 40;
+
+function titleTop(spec: DiagramSpec): number {
+  return -(TYPOGRAPHY.title.lineHeight + (spec.summary ? TYPOGRAPHY.subtitle.lineHeight : 0) + 28);
 }
 
 function labelId(nodeId: string): string {
@@ -341,17 +388,12 @@ function decorationSkeleton(
 
 function titleSkeletons(spec: DiagramSpec, theme: DiagramTheme): ExcalidrawElementSkeleton[] {
   const skeletons: ExcalidrawElementSkeleton[] = [];
-  const baseY = -(
-    TYPOGRAPHY.title.lineHeight +
-    (spec.summary ? TYPOGRAPHY.subtitle.lineHeight : 0) +
-    28
-  );
+  const boxes = new Map(titleBoxes(spec));
 
   skeletons.push({
     type: "text",
     id: "diagram-title",
-    x: 40,
-    y: baseY,
+    ...boxes.get("diagram-title"),
     text: spec.title,
     fontSize: TYPOGRAPHY.title.fontSize,
     fontFamily: FONT_MAP[theme.title.font],
@@ -364,8 +406,7 @@ function titleSkeletons(spec: DiagramSpec, theme: DiagramTheme): ExcalidrawEleme
     skeletons.push({
       type: "text",
       id: "diagram-summary",
-      x: 40,
-      y: baseY + TYPOGRAPHY.title.lineHeight + 6,
+      ...boxes.get("diagram-summary"),
       text: spec.summary,
       fontSize: TYPOGRAPHY.subtitle.fontSize,
       fontFamily: FONT_MAP[theme.title.font],

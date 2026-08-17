@@ -23,20 +23,46 @@ export interface OllamaStatus {
   error?: string;
 }
 
-export interface SavedProject {
+/** One slide of a deck: its own text, its own diagram, its own canvas. */
+export interface SavedSlide {
   id: string;
   name: string;
   originalText: string;
-  diagramSpec: DiagramSpec;
+  /** `null` while the slide exists but has not been generated yet. */
+  diagramSpec: DiagramSpec | null;
   excalidrawElements: unknown[];
   appState: unknown;
+}
+
+export interface SavedProject {
+  id: string;
+  name: string;
+  slides: SavedSlide[];
+  activeSlideId: string | null;
   theme: string;
   model: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ProjectSummary = Omit<SavedProject, "excalidrawElements" | "appState">;
+/** A slide without its canvas, so the library can list decks cheaply. */
+export interface SlideSummary {
+  id: string;
+  name: string;
+  originalText: string;
+  diagramSpec: DiagramSpec | null;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  slides: SlideSummary[];
+  activeSlideId: string | null;
+  theme: string;
+  model: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 /** Every user-facing failure is one of these; raw errors never reach the UI. */
 export type AppErrorCode =

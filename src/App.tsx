@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
+import { PresentMode } from "@/components/canvas/PresentMode";
 import { InputPanel } from "@/components/editor/InputPanel";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { ProjectsDrawer } from "@/components/projects/ProjectsDrawer";
@@ -29,6 +30,7 @@ export default function App() {
       />
       <CanvasPanel />
 
+      <PresentMode />
       <OnboardingDialog />
       <ProjectsDrawer open={projectsOpen} onClose={() => setProjectsOpen(false)} />
     </div>

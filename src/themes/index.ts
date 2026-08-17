@@ -69,7 +69,7 @@ export interface DiagramTheme {
 const minimal: DiagramTheme = {
   id: "minimal",
   name: "Minimal",
-  description: "White canvas, black type, thin grey connectors, one accent.",
+  description: "White canvas, hand-drawn type, thin grey connectors, one accent.",
   mode: "light",
   canvas: { background: "#ffffff", exportBackground: "#ffffff", gridSize: null },
   node: {
@@ -80,16 +80,16 @@ const minimal: DiagramTheme = {
     strokeWidth: 1,
     roughness: 0,
     rounded: true,
-    font: "Helvetica",
+    font: "Excalifont",
   },
   edge: {
     stroke: "#9ca3af",
     strokeWidth: 1,
     roughness: 0,
     labelColor: "#6b7280",
-    font: "Helvetica",
+    font: "Excalifont",
   },
-  title: { color: "#111827", subtitleColor: "#6b7280", font: "Helvetica" },
+  title: { color: "#111827", subtitleColor: "#6b7280", font: "Excalifont" },
   ui: {
     "--ov-bg": "#f7f7f8",
     "--ov-panel": "#ffffff",

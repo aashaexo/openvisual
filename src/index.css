@@ -228,6 +228,29 @@ body {
 }
 
 /*
+ * Excalidraw's own chrome is hidden so the canvas reads as part of this app
+ * rather than as an embedded drawing editor. Everything hidden here is
+ * replaced: drawing tools by CanvasTools, zoom and history by the top toolbar.
+ *
+ * Only chrome is touched — the canvas, its text editor and the context menu
+ * are deliberately left alone, so editing behaves exactly as before.
+ */
+.excalidraw .App-top-bar,
+.excalidraw .App-bottom-bar,
+.excalidraw .App-menu__left,
+.excalidraw .App-toolbar,
+.excalidraw .layer-ui__wrapper__footer,
+.excalidraw .zoom-actions,
+.excalidraw .undo-redo-buttons,
+.excalidraw .mobile-misc-tools-container,
+.excalidraw .main-menu-trigger,
+.excalidraw .help-icon,
+.excalidraw .scroll-back-to-content,
+.excalidraw .footer-center {
+  display: none !important;
+}
+
+/*
  * Excalidraw's dark mode inverts the canvas so that scenes authored in light
  * colours stay readable. Our themes author their colours directly — the dark
  * theme really is dark — so the inversion is switched off while the dark UI

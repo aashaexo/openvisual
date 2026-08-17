@@ -1,4 +1,5 @@
 import { FIXTURES } from "@/diagrams/fixtures";
+import type { DiagramSpec } from "@/diagrams/schema";
 import { closeDb } from "@/storage/db";
 import {
   BACKUP_KIND,
@@ -24,7 +25,7 @@ import {
   renameProject,
   saveProject,
 } from "@/storage/projects";
-import type { AppError, SavedProject } from "@/types";
+import type { AppError, SavedProject, SavedSlide } from "@/types";
 
 /**
  * IndexedDB does not exist in jsdom, so `idb` is replaced by an in-memory fake
@@ -110,14 +111,24 @@ if (typeof indexedDB === "undefined") {
   Object.defineProperty(globalThis, "indexedDB", { value: {}, configurable: true });
 }
 
-function makeProject(overrides: Partial<SavedProject> = {}): SavedProject {
+function makeSlide(overrides: Partial<SavedSlide> = {}): SavedSlide {
   return {
-    id: "project-1",
-    name: "Agent loop",
+    id: "slide-1",
+    name: "Slide 1",
     originalText: "The loop an agent repeats until it is done.",
     diagramSpec: FIXTURES.flowchart,
     excalidrawElements: [{ id: "el-1", type: "rectangle" }],
     appState: { viewBackgroundColor: "#ffffff" },
+    ...overrides,
+  };
+}
+
+function makeProject(overrides: Partial<SavedProject> = {}): SavedProject {
+  return {
+    id: "project-1",
+    name: "Agent loop",
+    slides: [makeSlide()],
+    activeSlideId: "slide-1",
     theme: "minimal",
     model: "qwen3:4b",
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -135,12 +146,13 @@ function catchThrown(action: () => unknown): unknown {
   throw new Error("expected the call to throw");
 }
 
-function expectImportAppError(thrown: unknown): void {
+function expectImportAppError(thrown: unknown): AppError {
   expect(thrown).not.toBeInstanceOf(Error);
   const error = thrown as AppError;
   expect(typeof error.title).toBe("string");
   expect(typeof error.message).toBe("string");
   expect(error.retryable).toBe(false);
+  return error;
 }
 
 describe("preferences", () => {
@@ -248,13 +260,13 @@ describe("projects", () => {
     expect(stored).toMatchObject({
       id: project.id,
       name: "Agent loop",
-      originalText: project.originalText,
       theme: "minimal",
       model: "qwen3:4b",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-03-01T10:00:00.000Z",
     });
-    expect(stored?.excalidrawElements).toEqual(project.excalidrawElements);
+    expect(stored?.slides[0].originalText).toBe(project.slides[0].originalText);
+    expect(stored?.slides[0].excalidrawElements).toEqual(project.slides[0].excalidrawElements);
   });
 
   it("returns null for an unknown id", async () => {
@@ -274,14 +286,17 @@ describe("projects", () => {
   it("searches name, original text and diagram title case-insensitively", async () => {
     await saveProject(makeProject({ id: "by-name", name: "Onboarding sketch" }));
     await saveProject(
-      makeProject({ id: "by-text", name: "Second", originalText: "Notes about kittens" }),
+      makeProject({
+        id: "by-text",
+        name: "Second",
+        slides: [makeSlide({ originalText: "Notes about kittens" })],
+      }),
     );
     await saveProject(
       makeProject({
         id: "by-title",
         name: "Third",
-        originalText: "nothing to see",
-        diagramSpec: FIXTURES.timeline,
+        slides: [makeSlide({ originalText: "nothing to see", diagramSpec: FIXTURES.timeline })],
       }),
     );
 
@@ -300,9 +315,9 @@ describe("projects", () => {
     await saveProject(makeProject());
 
     const [summary] = await listProjects();
-    expect(summary).not.toHaveProperty("excalidrawElements");
-    expect(summary).not.toHaveProperty("appState");
-    expect(summary.diagramSpec.title).toBe(FIXTURES.flowchart.title);
+    expect(summary.slides[0]).not.toHaveProperty("excalidrawElements");
+    expect(summary.slides[0]).not.toHaveProperty("appState");
+    expect(summary.slides[0].diagramSpec?.title).toBe(FIXTURES.flowchart.title);
   });
 
   it("renames a project and returns the updated record", async () => {
@@ -365,7 +380,8 @@ describe("import and export", () => {
     const restored = parseProjectBackup(serialized);
     expect(restored).toEqual({
       ...project,
-      diagramSpec: importDiagramJson(FIXTURES.flowchart),
+      // The spec comes back through Zod, so compare against the parsed form.
+      slides: [{ ...project.slides[0], diagramSpec: importDiagramJson(FIXTURES.flowchart) }],
     });
   });
 
@@ -386,9 +402,27 @@ describe("import and export", () => {
   });
 
   it("rejects a backup whose diagram is invalid", () => {
-    const broken = { ...makeProject(), diagramSpec: { version: 1, nodes: [] } };
+    const broken = makeProject({
+      slides: [makeSlide({ diagramSpec: { version: 1, nodes: [] } as unknown as DiagramSpec })],
+    });
 
     expectImportAppError(catchThrown(() => parseProjectBackup(broken)));
+  });
+
+  it("names the offending slide when a later slide's diagram is invalid", () => {
+    const broken = makeProject({
+      slides: [
+        makeSlide({ id: "s1", name: "Good slide" }),
+        makeSlide({
+          id: "s2",
+          name: "Broken slide",
+          diagramSpec: { version: 1, nodes: [] } as unknown as DiagramSpec,
+        }),
+      ],
+    });
+
+    const error = expectImportAppError(catchThrown(() => parseProjectBackup(broken)));
+    expect(`${error.message} ${error.detail ?? ""}`).toContain("Broken slide");
   });
 
   it("imports a valid diagram file", () => {

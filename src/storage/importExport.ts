@@ -1,8 +1,7 @@
 import type { DiagramSpec } from "@/diagrams/schema";
 import { formatIssues, summariseIssues, validateDiagramSpec } from "@/diagrams/validate";
-import { UNTITLED_PROJECT_NAME, createProjectId } from "@/storage/projects";
-import { DEFAULT_THEME_ID } from "@/themes";
-import type { AppError, AppErrorCode, SavedProject } from "@/types";
+import { migrateProject } from "@/storage/projects";
+import type { AppError, AppErrorCode, SavedProject, SavedSlide } from "@/types";
 import { createAppError } from "@/utils/errors";
 
 /**
@@ -11,7 +10,8 @@ import { createAppError } from "@/utils/errors";
  */
 
 export const BACKUP_KIND = "openvisual.project";
-export const BACKUP_VERSION = 1;
+/** 2 writes a deck of slides. Version-1 backups still import, via migrateProject. */
+export const BACKUP_VERSION = 2;
 
 export function serializeProjectBackup(project: SavedProject): string {
   return JSON.stringify({ kind: BACKUP_KIND, version: BACKUP_VERSION, project }, null, 2);
@@ -23,28 +23,33 @@ export function parseProjectBackup(json: unknown): SavedProject {
     ? asRecord(root.project, "This backup does not contain a project.")
     : root;
 
-  const validation = validateDiagramSpec(record.diagramSpec);
-  if (!validation.ok) {
+  // Shapes both versions into a deck; the diagrams inside are still unchecked.
+  const project = migrateProject(record);
+  if (!project) {
     throw importError(
-      "invalid_model_output",
-      `The diagram in this backup is not valid: ${summariseIssues(validation.issues)}`,
-      formatIssues(validation.issues),
+      "unknown",
+      "This file does not contain an OpenVisual project.",
+      Object.keys(record).join(", "),
     );
   }
 
-  const at = nowIso();
-  return {
-    id: readString(record.id) ?? createProjectId(),
-    name: readString(record.name) ?? UNTITLED_PROJECT_NAME,
-    originalText: readString(record.originalText) ?? "",
-    diagramSpec: validation.spec,
-    excalidrawElements: Array.isArray(record.excalidrawElements) ? record.excalidrawElements : [],
-    appState: isRecord(record.appState) ? record.appState : {},
-    theme: readString(record.theme) ?? DEFAULT_THEME_ID,
-    model: readString(record.model) ?? "",
-    createdAt: readTimestamp(record.createdAt) ?? at,
-    updatedAt: readTimestamp(record.updatedAt) ?? at,
-  };
+  return { ...project, slides: project.slides.map(validateSlide) };
+}
+
+/** An ungenerated slide has nothing to check; every real diagram faces Zod. */
+function validateSlide(slide: SavedSlide, index: number): SavedSlide {
+  if (slide.diagramSpec === null) return slide;
+
+  const validation = validateDiagramSpec(slide.diagramSpec);
+  if (!validation.ok) {
+    throw importError(
+      "invalid_model_output",
+      `The diagram on slide ${index + 1} ("${slide.name}") is not valid: ` +
+        summariseIssues(validation.issues),
+      formatIssues(validation.issues),
+    );
+  }
+  return { ...slide, diagramSpec: validation.spec };
 }
 
 export function importDiagramJson(json: unknown): DiagramSpec {
@@ -111,19 +116,4 @@ function asRecord(value: unknown, message: string): Record<string, unknown> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function readTimestamp(value: unknown): string | undefined {
-  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return undefined;
-  return value;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
 }
