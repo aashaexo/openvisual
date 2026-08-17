@@ -25,7 +25,7 @@ export function EmptyState() {
       >
         <SparkIcon className="h-6 w-6" />
       </div>
-      <h2 className="text-lg font-semibold">Turn text into a diagram</h2>
+      <h2 className="ov-display text-2xl">Turn text into a diagram</h2>
       <p className="mt-1 max-w-md text-sm" style={{ color: "var(--ov-muted)" }}>
         Write or paste something on the left, then generate a visual. A local model reads the text,
         and the layout is drawn here — fully editable.

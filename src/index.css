@@ -17,7 +17,31 @@
   --ov-danger: #b91c1c;
   --ov-focus: #4f46e5;
 
-  --ov-radius: 10px;
+  /*
+   * Editorial design system (bergside/awesome-design-skills, "editorial"):
+   * magazine typography, an 8pt baseline grid and tight 4/8px radii.
+   *
+   * The spec names Gelasio and Ubuntu Mono. Both are Google Fonts, and this
+   * app does not load a byte from a CDN — so the *intent* is kept with system
+   * stacks: a serif for display type, a mono for the caps labels. macOS
+   * resolves ui-serif to New York, which is exactly the register the spec is
+   * reaching for, at zero bytes and zero requests.
+   */
+  --ov-font-display: ui-serif, "New York", Georgia, "Times New Roman", serif;
+  --ov-font-body:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ov-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* 14/16/18/24/32/40 */
+  --ov-text-xs: 0.875rem;
+  --ov-text-sm: 1rem;
+  --ov-text-md: 1.125rem;
+  --ov-text-lg: 1.5rem;
+  --ov-text-xl: 2rem;
+  --ov-text-2xl: 2.5rem;
+
+  --ov-radius-sm: 4px;
+  --ov-radius: 8px;
   --ov-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
 }
 
@@ -31,16 +55,20 @@ body {
   margin: 0;
   background: var(--ov-bg);
   color: var(--ov-text);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  font-family: var(--ov-font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Serif is reserved for display type — the wordmark, dialog titles, empty
+ * states. Editorial design earns its character from that contrast, not from
+ * setting body copy and form controls in a serif, which would only cost
+ * legibility at 14px.
+ */
+.ov-display {
+  font-family: var(--ov-font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 /* A single, always-visible focus treatment for every interactive control. */
@@ -110,16 +138,19 @@ body {
     padding: 0.45rem;
     width: 2.1rem;
     height: 2.1rem;
+    border-radius: var(--ov-radius-sm);
   }
 
+  /* The spec's "label-caps" role: mono, uppercase, widely tracked. */
   .ov-field {
     display: block;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    font-family: var(--ov-font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--ov-muted);
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.5rem;
   }
 
   .ov-input,

@@ -93,7 +93,7 @@ export function Modal({
           style={{ borderColor: "var(--ov-border)" }}
         >
           <div>
-            <h2 id="ov-modal-title" className="text-base font-semibold">
+            <h2 id="ov-modal-title" className="ov-display text-xl">
               {title}
             </h2>
             {description && (

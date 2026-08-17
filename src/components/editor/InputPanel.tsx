@@ -81,7 +81,7 @@ export function InputPanel({ onOpenProjects, onOpenSetup }: InputPanelProps) {
             <SparkIcon />
           </span>
           <div>
-            <h1 className="text-sm font-semibold leading-tight">OpenVisual Local</h1>
+            <h1 className="ov-display text-base leading-tight">OpenVisual Local</h1>
             <p className="text-xs" style={{ color: "var(--ov-muted)" }}>
               Text to editable diagrams
             </p>

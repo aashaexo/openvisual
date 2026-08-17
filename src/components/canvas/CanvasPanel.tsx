@@ -75,7 +75,10 @@ export function CanvasPanel() {
 
         {!hasDiagram && status === "idle" && (
           <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            // z-10 is load-bearing: Excalidraw's canvas establishes its own
+            // stacking context, so an overlay left on `z-index: auto` paints
+            // *behind* it and silently disappears.
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
             style={{ background: "var(--ov-bg)" }}
           >
             <div className="pointer-events-auto w-full">
