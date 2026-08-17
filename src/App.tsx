@@ -18,6 +18,35 @@ export default function App() {
     void initialise();
   }, [initialise]);
 
+  /*
+   * Starting Ollama after the app is already open is the normal way round —
+   * you see the "not running" message, go and start it, and come back. Without
+   * this the app would still be showing the stale error, so the environment is
+   * re-checked whenever the window regains attention. Only while it is down:
+   * once Ollama answers, this stops doing anything.
+   */
+  useEffect(() => {
+    const recheck = () => {
+      const state = useAppStore.getState();
+      if (state.ollamaStatus?.running || state.environmentChecking) return;
+      void state.refreshEnvironment();
+    };
+
+    // A focus event already means the window has the user's attention, so it
+    // needs no visibility test; visibilitychange does, since it also fires on
+    // the way out.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") recheck();
+    };
+
+    window.addEventListener("focus", recheck);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", recheck);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     applyThemeVariables(getTheme(themeId), document.documentElement);
   }, [themeId]);

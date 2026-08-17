@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { DEFAULT_MODEL } from "@/ai/client";
 import { CopyCommand } from "@/components/ui/CopyCommand";
 import { Modal } from "@/components/ui/Modal";
@@ -11,6 +12,9 @@ type StepState = "ok" | "todo" | "checking";
  * First-run setup. It only ever *tells* the user what to run — the app never
  * installs Homebrew, Ollama or a model on their behalf.
  */
+/** How often the setup dialog re-checks while something is still missing. */
+const RECHECK_INTERVAL_MS = 4000;
+
 export function OnboardingDialog() {
   const open = useAppStore((s) => s.onboardingOpen);
   const setOpen = useAppStore((s) => s.setOnboardingOpen);
@@ -26,6 +30,22 @@ export function OnboardingDialog() {
   const hasModels = models.length > 0;
   const hasRecommended = models.some((m) => m.name === DEFAULT_MODEL);
   const allGood = running && hasModels;
+
+  /*
+   * While the dialog is open with something missing, the user is off in a
+   * terminal running the very commands it is showing them. Polling means the
+   * ticks turn green the moment the command lands, instead of leaving them to
+   * guess that "Check again" is required.
+   */
+  useEffect(() => {
+    if (!open || allGood) return;
+
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, RECHECK_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [open, allGood, refresh]);
 
   const stepState = (done: boolean): StepState => (checking ? "checking" : done ? "ok" : "todo");
 
