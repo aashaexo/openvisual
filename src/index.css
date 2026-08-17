@@ -232,11 +232,17 @@ body {
  * rather than as an embedded drawing editor. Everything hidden here is
  * replaced: drawing tools by CanvasTools, zoom and history by the top toolbar.
  *
- * Only chrome is touched — the canvas, its text editor and the context menu
- * are deliberately left alone, so editing behaves exactly as before.
+ * The class names are not guesses. `App-menu__left` and `zoom-actions` are the
+ * values of Excalidraw's own SHAPE_ACTIONS_MENU and ZOOM_ACTIONS constants,
+ * read out of its published bundle; the rest were confirmed against the live
+ * DOM at both mobile and desktop breakpoints, which render different chrome.
+ *
+ * Only chrome is touched. The canvas, its text editor and the context menu are
+ * deliberately left alone, so editing behaves exactly as before.
  */
 .excalidraw .App-top-bar,
 .excalidraw .App-bottom-bar,
+.excalidraw .App-menu_top,
 .excalidraw .App-menu__left,
 .excalidraw .App-toolbar,
 .excalidraw .layer-ui__wrapper__footer,
