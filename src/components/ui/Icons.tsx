@@ -18,13 +18,6 @@ const base = {
   focusable: false,
 };
 
-export const SparkIcon = ({ className }: IconProps) => (
-  <svg {...base} className={className}>
-    <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" />
-    <path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z" />
-  </svg>
-);
-
 export const StopIcon = ({ className }: IconProps) => (
   <svg {...base} className={className}>
     <rect x="6" y="6" width="12" height="12" rx="2" />

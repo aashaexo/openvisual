@@ -4,14 +4,7 @@ import { DIAGRAM_TYPES } from "@/diagrams/schema";
 import { EXAMPLES } from "@/components/editor/examples";
 import { IconButton } from "@/components/ui/IconButton";
 import { Spinner } from "@/components/ui/Spinner";
-import {
-  AlertIcon,
-  FolderIcon,
-  LockIcon,
-  SparkIcon,
-  StopIcon,
-  TrashIcon,
-} from "@/components/ui/Icons";
+import { AlertIcon, FolderIcon, LockIcon, StopIcon, TrashIcon } from "@/components/ui/Icons";
 import { useAppStore } from "@/store/appStore";
 import { THEME_LIST } from "@/themes";
 import type { DetailLevel, RequestedDiagramType } from "@/types";
@@ -72,20 +65,11 @@ export function InputPanel({ onOpenProjects, onOpenSetup }: InputPanelProps) {
         className="flex items-center justify-between gap-2 border-b px-4 py-3"
         style={{ borderColor: "var(--ov-border)" }}
       >
-        <div className="flex items-center gap-2">
-          <span
-            className="flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ background: "var(--ov-accent)", color: "var(--ov-accent-contrast)" }}
-            aria-hidden="true"
-          >
-            <SparkIcon />
-          </span>
-          <div>
-            <h1 className="ov-display text-base leading-tight">OpenVisual Local</h1>
-            <p className="text-xs" style={{ color: "var(--ov-muted)" }}>
-              Text to editable diagrams
-            </p>
-          </div>
+        <div>
+          <h1 className="ov-display text-base leading-tight">OpenVisual Local</h1>
+          <p className="text-xs" style={{ color: "var(--ov-muted)" }}>
+            Text to editable diagrams
+          </p>
         </div>
         <IconButton label="Saved projects" onClick={onOpenProjects}>
           <FolderIcon />
@@ -248,7 +232,6 @@ export function InputPanel({ onOpenProjects, onOpenSetup }: InputPanelProps) {
             onClick={() => void generate(spec ? "regenerate" : "generate")}
             disabled={!text.trim() || overLimit}
           >
-            <SparkIcon />
             Generate visual
           </button>
         )}

@@ -1,5 +1,4 @@
 import { EXAMPLES } from "@/components/editor/examples";
-import { SparkIcon } from "@/components/ui/Icons";
 import { useAppStore } from "@/store/appStore";
 
 /** Shown before anything has been generated, with three one-click starters. */
@@ -18,13 +17,6 @@ export function EmptyState() {
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-      <div
-        className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl"
-        style={{ background: "var(--ov-panel-alt)", color: "var(--ov-accent)" }}
-        aria-hidden="true"
-      >
-        <SparkIcon className="h-6 w-6" />
-      </div>
       <h2 className="ov-display text-2xl">Turn text into a diagram</h2>
       <p className="mt-1 max-w-md text-sm" style={{ color: "var(--ov-muted)" }}>
         Write or paste something on the left, then generate a visual. A local model reads the text,

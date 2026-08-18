@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync-excalidraw-assets": "node scripts/sync-excalidraw-assets.mjs",
-    "make-icon": "node scripts/make-app-icon.mjs && tauri icon app-icon.png",
+    "make-icon": "tauri icon app-icon.png",
     "postinstall": "node scripts/sync-excalidraw-assets.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
