@@ -11,6 +11,21 @@ import type { DetailLevel, RequestedDiagramType } from "@/types";
  * obey it.
  */
 
+const SYSTEM_ICON_RULE =
+  '- Give a node an "icon" when its meaning clearly matches one of the icon names you are given.';
+
+/**
+ * The rules the model weighs most heavily. The icon rule is spliced in only
+ * when image assets are on, so with the toggle off the field is invisible.
+ */
+export function buildSystemPrompt(icons: boolean): string {
+  if (!icons) return SYSTEM_PROMPT;
+  return SYSTEM_PROMPT.replace(
+    "- Use a clear reading order.",
+    `${SYSTEM_ICON_RULE}\n- Use a clear reading order.`,
+  );
+}
+
 export const SYSTEM_PROMPT = `You convert text into a clear visual explanation.
 
 First understand the main idea, important concepts, and relationships in the user's text. Select the best diagram type from flowchart, timeline, hierarchy, comparison, cycle, or hub_spoke.
@@ -62,7 +77,11 @@ Emphasis: "primary" for the few most important nodes, "secondary" for supporting
  * toggle off the model is never told the field exists, so it cannot spend
  * tokens on it or attach a glyph nobody asked for.
  */
-const ICON_GUIDE = `Icons: "icon" is optional and must be one of ${DIAGRAM_ICONS.join(", ")}. Choose one only when a node has an obvious real-world counterpart in that list — a database, a warning, a person. Naming the wrong glyph is worse than naming none, and icons on every node make the diagram noisier, not clearer, so leave "icon" off most nodes.`;
+const ICON_GUIDE = `Icons: a node may include "icon", one name from this list: ${DIAGRAM_ICONS.join(", ")}.
+
+Use an icon whenever a node clearly maps to one. Typical matches: a node about people takes "user" or "users"; storage takes "database"; a failure, warning or outage takes "alert"; sending mail takes "mail"; a report or metrics takes "chart"; a written file takes "document"; a decision or unknown takes "question"; waiting or a delay takes "clock"; a machine or service takes "server"; automation takes "robot".
+
+Match the node's meaning to the closest name and leave "icon" out only when nothing in the list fits. Never invent a name that is not on the list.`;
 
 const CONTENT_GUIDE = `Node text: the label names the node in a few words. Add a "description" when one sentence of prose is needed to explain it. Add "items" when the node holds a list of concrete things — symptoms, inputs, outputs, checks — that read better as separate bullets than as a sentence.
 

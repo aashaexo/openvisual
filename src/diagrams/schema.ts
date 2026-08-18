@@ -215,3 +215,53 @@ export const diagramJsonSchema = {
   },
   required: ["version", "title", "type", "direction", "nodes", "edges"],
 } as const;
+
+/**
+ * The icon field is optional, and a constrained grammar lets a small model
+ * satisfy `required` and stop — which is exactly what qwen3:4b did, emitting
+ * no icons at all however the prompt was worded.
+ *
+ * So when icons are on the field becomes REQUIRED with a "none" member: the
+ * model must make a choice per node rather than skipping the property. The
+ * sentinel is stripped before Zod ever sees it.
+ */
+export const NO_ICON = "none";
+
+export function buildDiagramJsonSchema(icons: boolean) {
+  if (!icons) return diagramJsonSchema;
+
+  const node = diagramJsonSchema.properties.nodes.items;
+  return {
+    ...diagramJsonSchema,
+    properties: {
+      ...diagramJsonSchema.properties,
+      nodes: {
+        ...diagramJsonSchema.properties.nodes,
+        items: {
+          ...node,
+          properties: {
+            ...node.properties,
+            icon: { type: "string", enum: [...DIAGRAM_ICONS, NO_ICON] },
+          },
+          required: [...node.required, "icon"],
+        },
+      },
+    },
+  };
+}
+
+/** Removes the "none" sentinel so the result matches the strict Zod schema. */
+export function stripIconSentinel(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  const spec = value as { nodes?: unknown };
+  if (!Array.isArray(spec.nodes)) return value;
+
+  return {
+    ...spec,
+    nodes: spec.nodes.map((node) => {
+      if (typeof node !== "object" || node === null) return node;
+      const { icon, ...rest } = node as Record<string, unknown>;
+      return icon === NO_ICON || icon === undefined ? rest : { ...rest, icon };
+    }),
+  };
+}

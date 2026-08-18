@@ -2,6 +2,12 @@ import { setOllamaTransport } from "@/ai/client";
 import { MAX_INPUT_CHARS, runGeneration, type GenerationRequest } from "@/ai/pipeline";
 import { SYSTEM_PROMPT } from "@/ai/prompts";
 import { DIAGRAM_ICONS } from "@/diagrams/icons";
+
+type SchemaShape = {
+  properties: {
+    nodes: { items: { required: string[]; properties: { icon: { enum: string[] } } } };
+  };
+};
 import { FIXTURES } from "@/diagrams/fixtures";
 import { diagramJsonSchema, MAX_NODES } from "@/diagrams/schema";
 import { createFakeOllama, type FakeOllama } from "@/test/fakeOllama";
@@ -314,9 +320,36 @@ describe("image assets toggle", () => {
     await runGeneration(request({ icons: true }));
 
     const prompt = ollama.calls[0].request.prompt;
-    expect(prompt).toMatch(/"icon" is optional/);
+    expect(prompt).toMatch(/\bicon\b/i);
     for (const name of DIAGRAM_ICONS) {
       expect(prompt).toContain(name);
     }
+  });
+});
+
+describe("icon sentinel", () => {
+  it("makes the icon a required choice only when the toggle is on", async () => {
+    const on = install({ responses: [JSON.stringify(FIXTURES.flowchart)] });
+    await runGeneration(request({ icons: true }));
+    const onNode = (on.calls[0].request.format as SchemaShape).properties.nodes.items;
+    expect(onNode.required).toContain("icon");
+    expect(onNode.properties.icon.enum).toContain("none");
+
+    const off = install({ responses: [JSON.stringify(FIXTURES.flowchart)] });
+    await runGeneration(request({ icons: false }));
+    const offNode = (off.calls[0].request.format as SchemaShape).properties.nodes.items;
+    expect(offNode.required).not.toContain("icon");
+  });
+
+  it("strips the none sentinel before validation", async () => {
+    const spec = structuredClone(FIXTURES.flowchart) as unknown as {
+      nodes: { icon?: string }[];
+    };
+    spec.nodes.forEach((node) => (node.icon = "none"));
+    install({ responses: [JSON.stringify(spec)] });
+
+    const result = await runGeneration(request({ icons: true }));
+
+    expect(result.spec.nodes.every((node) => node.icon === undefined)).toBe(true);
   });
 });

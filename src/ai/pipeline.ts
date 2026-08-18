@@ -5,10 +5,15 @@ import {
   buildChangeTypePrompt,
   buildGeneratePrompt,
   buildSimplifyPrompt,
-  SYSTEM_PROMPT,
+  buildSystemPrompt,
 } from "@/ai/prompts";
 import { attemptRepair } from "@/ai/repair";
-import { diagramJsonSchema, type DiagramSpec, type DiagramType } from "@/diagrams/schema";
+import {
+  buildDiagramJsonSchema,
+  stripIconSentinel,
+  type DiagramSpec,
+  type DiagramType,
+} from "@/diagrams/schema";
 import {
   formatIssues,
   summariseIssues,
@@ -74,9 +79,9 @@ export async function runGeneration(request: GenerationRequest): Promise<Generat
       {
         requestId: request.requestId,
         model: request.model,
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(request.icons),
         prompt: buildPrompt(request, text),
-        format: diagramJsonSchema,
+        format: buildDiagramJsonSchema(request.icons),
         temperature: GENERATION_TEMPERATURE,
         numCtx: CONTEXT_WINDOW,
         timeoutSecs,
@@ -88,7 +93,7 @@ export async function runGeneration(request: GenerationRequest): Promise<Generat
 
     const parsed = parseModelJson(response.content);
     const firstPass: ValidationResult = parsed.ok
-      ? validateDiagramSpec(parsed.value)
+      ? validateDiagramSpec(stripIconSentinel(parsed.value))
       : { ok: false, issues: [{ path: "(root)", message: parsed.reason }] };
 
     if (firstPass.ok) {
