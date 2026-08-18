@@ -79,8 +79,10 @@ describe("validateDiagramSpec", () => {
 
   describe("identity rules", () => {
     it("rejects duplicate node ids and points at the offending node", () => {
-      const spec = renameNode(clone("flowchart"), "tool", "goal");
-      expect(issuesOf(spec)).toEqual([{ path: "nodes.2.id", message: 'duplicate node id "goal"' }]);
+      const spec = renameNode(clone("flowchart"), "investigate", "deploy");
+      expect(issuesOf(spec)).toEqual([
+        { path: "nodes.2.id", message: 'duplicate node id "deploy"' },
+      ]);
     });
 
     it("rejects duplicate edge ids", () => {

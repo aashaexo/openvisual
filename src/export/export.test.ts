@@ -98,7 +98,7 @@ describe("buildExportBlob: json", () => {
     const { blob, fileName } = await buildExportBlob(makeRequest({ format: "json", spec }));
 
     expect(JSON.parse(await blob.text())).toEqual(spec);
-    expect(fileName).toBe("from-draft-to-published-post.json");
+    expect(fileName).toBe(suggestFileName(spec.title, ".json"));
   });
 
   it("exports the spec even when the canvas is empty", async () => {
@@ -121,7 +121,7 @@ describe("buildExportBlob: excalidraw", () => {
     expect(serializeMock).toHaveBeenCalledTimes(1);
     expect(await blob.text()).toBe(SERIALIZED_SCENE);
     expect(blob.type).toBe("application/json");
-    expect(fileName).toBe("how-an-ai-agent-completes-a-task.excalidraw");
+    expect(fileName).toBe(suggestFileName(FIXTURES.flowchart.title, ".excalidraw"));
   });
 });
 

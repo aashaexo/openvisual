@@ -10,6 +10,7 @@
 export const TYPOGRAPHY = {
   label: { fontSize: 20, lineHeight: 25 },
   description: { fontSize: 14, lineHeight: 18 },
+  item: { fontSize: 14, lineHeight: 19 },
   edgeLabel: { fontSize: 14, lineHeight: 18 },
   title: { fontSize: 28, lineHeight: 35 },
   subtitle: { fontSize: 16, lineHeight: 20 },
@@ -25,6 +26,10 @@ export const NODE_BOX = {
   paddingY: 14,
   /** Gap between the label block and the description block. */
   gap: 8,
+  /** Gap between the label/description block and the item list. */
+  itemGap: 8,
+  /** Prefix rendered before each item. */
+  bullet: "• ",
 } as const;
 
 /**

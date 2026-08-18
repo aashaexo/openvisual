@@ -12,6 +12,8 @@ export interface MeasuredNode {
   height: number;
   labelLines: string[];
   descriptionLines: string[];
+  /** Already bullet-prefixed and wrapped; ready to render as-is. */
+  itemLines: string[];
 }
 
 export interface PositionedNode extends MeasuredNode {

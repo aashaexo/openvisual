@@ -4,6 +4,8 @@ import {
   DIAGRAM_TYPES,
   EDGE_STYLES,
   MAX_DESCRIPTION_WORDS,
+  MAX_ITEMS,
+  MAX_ITEM_WORDS,
   MAX_LABEL_WORDS,
   MAX_NODES,
   MIN_NODES,
@@ -160,6 +162,62 @@ describe("diagramSpecSchema", () => {
     });
   });
 
+  describe("item limits", () => {
+    const items = (count: number): string[] =>
+      Array.from({ length: count }, (_, index) => `item ${index + 1}`);
+
+    it("leaves a node without items alone", () => {
+      expect(acceptanceOf(cloneFlowchart()).nodes[0].items).toBeUndefined();
+    });
+
+    it("accepts an empty list as no list at all", () => {
+      expect(acceptanceOf(specWithNodePatch({ items: [] })).nodes[0].items).toEqual([]);
+    });
+
+    it(`accepts a node with ${MAX_ITEMS} items`, () => {
+      const spec = acceptanceOf(specWithNodePatch({ items: items(MAX_ITEMS) }));
+      expect(spec.nodes[0].items).toEqual(items(MAX_ITEMS));
+    });
+
+    it(`rejects a node with ${MAX_ITEMS + 1} items`, () => {
+      expect(rejectionOf(specWithNodePatch({ items: items(MAX_ITEMS + 1) }))).toContainEqual({
+        path: "nodes.0.items",
+        message: `a node may not have more than ${MAX_ITEMS} items`,
+      });
+    });
+
+    it(`accepts a ${MAX_ITEM_WORDS}-word item`, () => {
+      const item = words(MAX_ITEM_WORDS);
+      expect(acceptanceOf(specWithNodePatch({ items: [item] })).nodes[0].items).toEqual([item]);
+    });
+
+    it(`rejects a ${MAX_ITEM_WORDS + 1}-word item and names its position`, () => {
+      const input = specWithNodePatch({ items: ["fine", words(MAX_ITEM_WORDS + 1)] });
+      expect(rejectionOf(input)).toContainEqual({
+        path: "nodes.0.items.1",
+        message: `item must be ${MAX_ITEM_WORDS} words or fewer`,
+      });
+    });
+
+    it("rejects an empty item", () => {
+      expect(rejectionOf(specWithNodePatch({ items: ["fine", "   "] }))).toContainEqual({
+        path: "nodes.0.items.1",
+        message: "item must not be empty",
+      });
+    });
+
+    it("trims every item", () => {
+      const spec = acceptanceOf(specWithNodePatch({ items: ["  padded item  "] }));
+      expect(spec.nodes[0].items).toEqual(["padded item"]);
+    });
+
+    it("rejects a non-string item", () => {
+      expect(rejectionOf(specWithNodePatch({ items: [42] })).map((issue) => issue.path)).toContain(
+        "nodes.0.items.0",
+      );
+    });
+  });
+
   describe("closed vocabularies", () => {
     it("rejects an unknown diagram type", () => {
       const issues = rejectionOf({ ...cloneFlowchart(), type: "mindmap" });
@@ -306,6 +364,22 @@ describe("diagramSpecSchema", () => {
       });
     });
 
+    it("rejects markup in an item", () => {
+      const input = specWithNodePatch({ items: ["safe item", "<script>alert(1)</script>"] });
+      expect(rejectionOf(input)).toContainEqual({
+        path: "nodes.0.items.1",
+        message: "item must be plain text (no HTML, SVG, script or template syntax)",
+      });
+    });
+
+    it("rejects a template expression in an item", () => {
+      const input = specWithNodePatch({ items: ["Total ${count} errors"] });
+      expect(rejectionOf(input)).toContainEqual({
+        path: "nodes.0.items.0",
+        message: "item must be plain text (no HTML, SVG, script or template syntax)",
+      });
+    });
+
     it("rejects markup in a description", () => {
       const input = specWithNodePatch({ description: "javascript:alert(1)" });
       expect(rejectionOf(input)).toContainEqual({
@@ -360,6 +434,13 @@ describe("diagramJsonSchema", () => {
       sorted(Object.keys(diagramEdgeSchema.shape)),
     );
     expect(sorted(items.required)).toEqual(requiredKeys(diagramEdgeSchema.shape));
+  });
+
+  it("offers items as a bounded array of plain strings", () => {
+    const items = diagramJsonSchema.properties.nodes.items.properties.items;
+    expect(items.type).toBe("array");
+    expect(items.maxItems).toBe(MAX_ITEMS);
+    expect(items.items.type).toBe("string");
   });
 
   it("carries the same node-count bounds as the Zod schema", () => {

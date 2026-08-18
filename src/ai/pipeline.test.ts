@@ -134,7 +134,7 @@ describe("repair", () => {
     expect(repair.kind).toBe("repair");
     expect(repair.request.requestId).toBe("req-7-repair");
     expect(repair.request.prompt).toContain("Validation errors:");
-    expect(repair.request.prompt).toContain('duplicate node id "goal"');
+    expect(repair.request.prompt).toContain('duplicate node id "deploy"');
     expect(repair.request.prompt).toContain("nodes.1.id");
     expect(repair.request.format).toBe(diagramJsonSchema);
   });

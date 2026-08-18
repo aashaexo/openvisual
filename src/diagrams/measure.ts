@@ -1,5 +1,12 @@
 import type { DiagramNode, DiagramSpec } from "@/diagrams/schema";
-import { NODE_BOX, TYPOGRAPHY, widestLine, wrapText } from "@/diagrams/typography";
+import {
+  measureText,
+  NODE_BOX,
+  TEXT_WIDTH_RATIO,
+  TYPOGRAPHY,
+  widestLine,
+  wrapText,
+} from "@/diagrams/typography";
 import type { MeasuredNode } from "@/diagrams/layouts/types";
 
 /**
@@ -14,10 +21,12 @@ export function measureNode(node: DiagramNode): MeasuredNode {
   const descriptionLines = node.description
     ? wrapText(node.description, innerMax, TYPOGRAPHY.description.fontSize)
     : [];
+  const itemLines = wrapItems(node.items ?? [], innerMax);
 
   const contentWidth = Math.max(
     widestLine(labelLines, TYPOGRAPHY.label.fontSize),
     widestLine(descriptionLines, TYPOGRAPHY.description.fontSize),
+    widestLine(itemLines, TYPOGRAPHY.item.fontSize),
   );
 
   let width = clamp(
@@ -31,7 +40,8 @@ export function measureNode(node: DiagramNode): MeasuredNode {
       labelLines.length * TYPOGRAPHY.label.lineHeight +
       (descriptionLines.length
         ? NODE_BOX.gap + descriptionLines.length * TYPOGRAPHY.description.lineHeight
-        : 0),
+        : 0) +
+      (itemLines.length ? NODE_BOX.itemGap + itemLines.length * TYPOGRAPHY.item.lineHeight : 0),
   );
 
   height = Math.max(height, NODE_BOX.minHeight);
@@ -44,7 +54,12 @@ export function measureNode(node: DiagramNode): MeasuredNode {
     height = side;
   } else if (node.shape === "diamond") {
     width = Math.ceil(width * 1.7);
-    height = Math.ceil(height * 1.9);
+    // A diamond's inscribed rectangle narrows towards the top and bottom, so a
+    // W-by-H text block only fits when W/width + H/height <= 1. A flat height
+    // multiplier stops satisfying that once the stack is tall — which an item
+    // list makes easy — and then the lowest line crosses the sloping edge.
+    const textHeight = height - NODE_BOX.paddingY * 2;
+    height = Math.ceil(Math.max(height * 1.9, textHeight / DIAMOND_HEIGHT_SHARE));
   }
 
   // Even sizes keep centre points on whole pixels.
@@ -55,7 +70,39 @@ export function measureNode(node: DiagramNode): MeasuredNode {
     height: even(height),
     labelLines,
     descriptionLines,
+    itemLines,
   };
+}
+
+/**
+ * Share of a diamond's height its text block may occupy.
+ *
+ * The inscribed rectangle allows `1 - TEXT_WIDTH_RATIO.diamond`; the two points
+ * held back cover the half-pixel that rounding a centred block introduces on
+ * each axis, so the fit survives being snapped to whole pixels.
+ */
+const DIAMOND_HEIGHT_SHARE = 1 - TEXT_WIDTH_RATIO.diamond - 0.02;
+
+/** Indent applied to the runover lines of a wrapped item. */
+const ITEM_INDENT = "  ";
+
+/**
+ * Wraps every item into bullet-prefixed render-ready lines.
+ *
+ * The indent is budgeted for *before* wrapping rather than added afterwards,
+ * because a runover line that grew past `innerMax` after the fact would push the
+ * text outside the box the node was sized for.
+ */
+function wrapItems(items: readonly string[], innerMax: number): string[] {
+  if (items.length === 0) return [];
+
+  const indentWidth = measureText(ITEM_INDENT, TYPOGRAPHY.item.fontSize);
+
+  return items.flatMap((item) =>
+    wrapText(`${NODE_BOX.bullet}${item}`, innerMax - indentWidth, TYPOGRAPHY.item.fontSize).map(
+      (line, index) => (index === 0 ? line : `${ITEM_INDENT}${line}`),
+    ),
+  );
 }
 
 export function measureSpec(spec: DiagramSpec): MeasuredNode[] {

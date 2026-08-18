@@ -137,7 +137,7 @@ describe("layoutDiagram fixture invariants", () => {
 });
 
 describe("layout shapes", () => {
-  it("flowchart places the first edge's source above its target", async () => {
+  it("flowchart places the first edge's source left of its target", async () => {
     const spec = FIXTURES.flowchart;
     const layout = await layoutDiagram(spec);
     const first = spec.edges[0];
@@ -145,7 +145,8 @@ describe("layout shapes", () => {
     const source = centre(byId(layout, first.source));
     const target = centre(byId(layout, first.target));
 
-    expect(source.y).toBeLessThan(target.y);
+    // The fixture reads left to right; syntheticFlowchart covers the vertical case.
+    expect(source.x).toBeLessThan(target.x);
   });
 
   it("timeline runs left to right on a shared baseline with an axis", async () => {

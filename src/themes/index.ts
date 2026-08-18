@@ -27,6 +27,14 @@ export interface NodePalette {
   text: string;
 }
 
+/**
+ * How many accents every theme must offer.
+ *
+ * Fixed rather than per-theme so the accent a node gets depends only on the
+ * spec, and switching theme repaints a diagram without reshuffling it.
+ */
+export const ACCENT_COUNT = 6;
+
 export interface DiagramTheme {
   id: ThemeId;
   name: string;
@@ -43,6 +51,11 @@ export interface DiagramTheme {
     primary: NodePalette;
     secondary: NodePalette;
     neutral: NodePalette;
+    /**
+     * One palette per box, exactly ACCENT_COUNT long. The app picks the index
+     * from the spec's structure; the model has no say in it.
+     */
+    accents: NodePalette[];
     fillStyle: FillStyle;
     strokeWidth: StrokeWidth;
     roughness: Roughness;
@@ -76,6 +89,14 @@ const minimal: DiagramTheme = {
     primary: { background: "#eef2ff", stroke: "#1f2937", text: "#111827" },
     secondary: { background: "#f5f5f5", stroke: "#4b5563", text: "#1f2937" },
     neutral: { background: "transparent", stroke: "#9ca3af", text: "#374151" },
+    accents: [
+      { background: "#eef4ff", stroke: "#2f5fd0", text: "#14203a" },
+      { background: "#fef1f0", stroke: "#c9453c", text: "#3a1613" },
+      { background: "#edf7f0", stroke: "#2f7d4f", text: "#12291b" },
+      { background: "#fdf4e3", stroke: "#9a6a10", text: "#33260c" },
+      { background: "#f3f0fd", stroke: "#6d4bc4", text: "#241a3d" },
+      { background: "#eaf6f6", stroke: "#1f7a7a", text: "#102b2b" },
+    ],
     fillStyle: "solid",
     strokeWidth: 1,
     roughness: 0,
@@ -114,6 +135,14 @@ const editorial: DiagramTheme = {
     primary: { background: "#f6dfc4", stroke: "#7c3a10", text: "#2b2621" },
     secondary: { background: "#f1ece2", stroke: "#5c554a", text: "#2b2621" },
     neutral: { background: "transparent", stroke: "#8a8175", text: "#3d372f" },
+    accents: [
+      { background: "#f7e3d3", stroke: "#a8542a", text: "#3a2317" },
+      { background: "#e3e8f0", stroke: "#34527d", text: "#1c2536" },
+      { background: "#e8ebd9", stroke: "#5f7038", text: "#252c15" },
+      { background: "#f6e9c9", stroke: "#8f6a17", text: "#342a12" },
+      { background: "#eee0e6", stroke: "#7d4560", text: "#301d26" },
+      { background: "#e6e4de", stroke: "#5a615a", text: "#1f2724" },
+    ],
     fillStyle: "hachure",
     strokeWidth: 2,
     roughness: 1,
@@ -152,6 +181,14 @@ const darkTechnical: DiagramTheme = {
     primary: { background: "#1e293b", stroke: "#818cf8", text: "#e5e7eb" },
     secondary: { background: "#161b22", stroke: "#38bdf8", text: "#dbe3ea" },
     neutral: { background: "transparent", stroke: "#64748b", text: "#cbd5e1" },
+    accents: [
+      { background: "#1b1f3a", stroke: "#818cf8", text: "#dfe3ff" },
+      { background: "#331a26", stroke: "#fb7185", text: "#ffe1e8" },
+      { background: "#0f2a20", stroke: "#34d399", text: "#d5f5e6" },
+      { background: "#2e2312", stroke: "#fbbf24", text: "#fbeed6" },
+      { background: "#10222f", stroke: "#38bdf8", text: "#d8eefc" },
+      { background: "#2a1631", stroke: "#e879f9", text: "#f9e3fd" },
+    ],
     fillStyle: "solid",
     strokeWidth: 2,
     roughness: 0,

@@ -29,6 +29,8 @@ export const MIN_NODES = 3;
 export const MAX_NODES = 10;
 export const MAX_LABEL_WORDS = 7;
 export const MAX_DESCRIPTION_WORDS = 16;
+export const MAX_ITEMS = 6;
+export const MAX_ITEM_WORDS = 6;
 
 export const diagramTypeSchema = z.enum(DIAGRAM_TYPES);
 export const diagramDirectionSchema = z.enum(DIAGRAM_DIRECTIONS);
@@ -71,6 +73,10 @@ export const diagramNodeSchema = z.strictObject({
   id: idField,
   label: textField(MAX_LABEL_WORDS, "label"),
   description: textField(MAX_DESCRIPTION_WORDS, "description").optional(),
+  items: z
+    .array(textField(MAX_ITEM_WORDS, "item"))
+    .max(MAX_ITEMS, { message: `a node may not have more than ${MAX_ITEMS} items` })
+    .optional(),
   category: z.string().trim().min(1).max(48).optional(),
   emphasis: z.enum(NODE_EMPHASIS),
   shape: z.enum(NODE_SHAPES),
@@ -177,6 +183,7 @@ export const diagramJsonSchema = {
           id: { type: "string" },
           label: { type: "string" },
           description: { type: "string" },
+          items: { type: "array", maxItems: MAX_ITEMS, items: { type: "string" } },
           category: { type: "string" },
           emphasis: { type: "string", enum: [...NODE_EMPHASIS] },
           shape: { type: "string", enum: [...NODE_SHAPES] },

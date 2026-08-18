@@ -11,6 +11,11 @@ import {
 
 const SHAPES: NodeShape[] = ["rectangle", "rounded", "circle", "diamond"];
 
+/** Every fixture node carrying an item list, so the item assertions cannot pass vacuously. */
+const ITEM_NODES: DiagramNode[] = FIXTURE_LIST.flatMap((spec) =>
+  spec.nodes.filter((node) => node.items !== undefined && node.items.length > 0),
+);
+
 function makeNode(overrides: Partial<DiagramNode> = {}): DiagramNode {
   return {
     id: "n1",
@@ -104,6 +109,57 @@ describe("measureNode", () => {
     expect(bare.descriptionLines).toEqual([]);
   });
 
+  it("makes a node with items taller than the same node without them", () => {
+    const bare = measureNode(makeNode());
+    const listed = measureNode(makeNode({ items: ["First check", "Second check"] }));
+
+    expect(bare.itemLines).toEqual([]);
+    expect(listed.itemLines.length).toBeGreaterThan(0);
+    expect(listed.height).toBeGreaterThan(bare.height);
+  });
+
+  it("adds items on top of a description rather than replacing it", () => {
+    const described = measureNode(makeNode({ description: "The agent decides what to do first." }));
+    const both = measureNode(
+      makeNode({
+        description: "The agent decides what to do first.",
+        items: ["First check", "Second check"],
+      }),
+    );
+
+    expect(both.descriptionLines).toEqual(described.descriptionLines);
+    expect(both.height).toBeGreaterThan(described.height);
+  });
+
+  it("gives every short item its own bullet-prefixed line", () => {
+    const items = ["Error rate spikes", "Latency climbs", "Eval scores drop"];
+    const measured = measureNode(makeNode({ items }));
+
+    expect(measured.itemLines).toHaveLength(items.length);
+    measured.itemLines.forEach((line, index) => {
+      expect(line).toBe(`${NODE_BOX.bullet}${items[index]}`);
+    });
+  });
+
+  it("wraps a long item and keeps every line inside the inner text width", () => {
+    const innerMax = NODE_BOX.maxWidth - NODE_BOX.paddingX * 2;
+    const measured = measureNode(
+      makeNode({ items: ["Latency and error rates across every region"] }),
+    );
+
+    expect(measured.itemLines.length).toBeGreaterThan(1);
+    for (const line of measured.itemLines) {
+      expect(measureText(line, TYPOGRAPHY.item.fontSize)).toBeLessThanOrEqual(innerMax);
+    }
+  });
+
+  it("widens the box for an item longer than the label", () => {
+    const narrow = measureNode(makeNode({ label: "Check" }));
+    const wide = measureNode(makeNode({ label: "Check", items: ["Latency and error metrics"] }));
+
+    expect(wide.width).toBeGreaterThan(narrow.width);
+  });
+
   it("produces a square box for circle nodes", () => {
     for (const label of ["Hub", "Local model runtime", "Runs entirely on the machine"]) {
       const circle = measureNode(makeNode({ label, shape: "circle" }));
@@ -154,6 +210,7 @@ describe("TEXT_WIDTH_RATIO invariant", () => {
       const widest = Math.max(
         widestMeasuredLine(measured.labelLines, TYPOGRAPHY.label.fontSize),
         widestMeasuredLine(measured.descriptionLines, TYPOGRAPHY.description.fontSize),
+        widestMeasuredLine(measured.itemLines, TYPOGRAPHY.item.fontSize),
       );
       const budget = measured.width * TEXT_WIDTH_RATIO[shape];
 
@@ -161,6 +218,37 @@ describe("TEXT_WIDTH_RATIO invariant", () => {
         budget >= widest,
         `${shape} node "${node.label}": text box ${budget.toFixed(2)} < widest line ${widest.toFixed(2)}`,
       ).toBe(true);
+    }
+  });
+
+  it("fits every wrapped item line of every fixture node inside its text box", () => {
+    expect(ITEM_NODES.length).toBeGreaterThan(0);
+
+    for (const node of ITEM_NODES) {
+      const measured = measureNode(node);
+      const budget = measured.width * TEXT_WIDTH_RATIO[node.shape];
+
+      expect(measured.itemLines.length).toBeGreaterThanOrEqual(node.items?.length ?? 0);
+      for (const line of measured.itemLines) {
+        const width = measureText(line, TYPOGRAPHY.item.fontSize);
+        expect(
+          budget >= width,
+          `node "${node.id}" item line "${line}": text box ${budget.toFixed(2)} < ${width.toFixed(2)}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("fits the widest item the wrapper will ever emit inside every shape", () => {
+    // Six maximum-length items of the widest words that still wrap, i.e. the worst case.
+    const items = Array.from({ length: 6 }, () => "abcdefghij abcdefghij abcdefghij");
+
+    for (const shape of SHAPES) {
+      const measured = measureNode(makeNode({ shape, items }));
+      const widest = widestMeasuredLine(measured.itemLines, TYPOGRAPHY.item.fontSize);
+      const budget = measured.width * TEXT_WIDTH_RATIO[shape];
+
+      expect(budget >= widest, `${shape}: ${budget} < ${widest}`).toBe(true);
     }
   });
 

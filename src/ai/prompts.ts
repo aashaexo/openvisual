@@ -24,6 +24,11 @@ Rules:
 - Use between ${MIN_NODES} and ${MAX_NODES} nodes.
 - Keep node labels under 7 words.
 - Keep descriptions under 16 words.
+- A node may also carry "items": a short bulleted list of up to 6 entries, each under 6 words.
+- Use "items" only when a step genuinely contains a list of concrete things, such as symptoms, inputs, outputs or checks.
+- "items" is optional. A node whose meaning fits in its label needs no list, and padding every node with bullets makes a worse diagram.
+- "description" is one sentence of prose explaining the node; "items" are short parallel fragments. A node may have either, both, or neither.
+- Write items as plain text. Do not add bullet characters, dashes or numbering of your own.
 - Use a clear reading order.
 - Every node must be useful.
 - Every edge must represent a real relationship.
@@ -33,6 +38,7 @@ Rules:
 - Do not return Mermaid.
 - Do not return coordinates.
 - Do not return styling.
+- Do not return colours, fonts or sizes. The app chooses every colour itself.
 - Do not return explanations outside the JSON.`;
 
 const TYPE_GUIDE = `Diagram types:
@@ -48,10 +54,16 @@ Directions: use "vertical" for top-down flows and hierarchies, "horizontal" for 
 const SHAPE_GUIDE = `Shapes: "rounded" for steps and events, "rectangle" for things and parts, "diamond" for decisions, "circle" for a central idea.
 Emphasis: "primary" for the few most important nodes, "secondary" for supporting ones, "neutral" for detail.`;
 
+const CONTENT_GUIDE = `Node text: the label names the node in a few words. Add a "description" when one sentence of prose is needed to explain it. Add "items" when the node holds a list of concrete things — symptoms, inputs, outputs, checks — that read better as separate bullets than as a sentence.
+
+A node may have a description, items, both, or neither. Keep the two distinct: the description is prose about the node, the items are short parallel fragments of the same kind as each other.
+
+Items are optional and belong on only the few nodes that genuinely list something. A node whose meaning already fits in its label needs no items, and giving every node a list makes the diagram worse, not richer. Use at most 6 items on a node, each under 6 words, in plain text with no bullet characters, dashes, numbering or other markup — the app draws the bullets.`;
+
 const DETAIL_GUIDE: Record<DetailLevel, string> = {
-  simple: `Detail level: simple. Use 3 to 5 nodes. Labels only, no descriptions. Keep only the backbone of the idea.`,
-  balanced: `Detail level: balanced. Use 4 to 7 nodes. Add a short description to the nodes that need one.`,
-  detailed: `Detail level: detailed. Use 6 to ${MAX_NODES} nodes. Give most nodes a short description.`,
+  simple: `Detail level: simple. Use 3 to 5 nodes. Labels only, no descriptions and no items. Keep only the backbone of the idea.`,
+  balanced: `Detail level: balanced. Use 4 to 7 nodes. Add a short description to the nodes that need one. Use items sparingly: only where a node clearly holds a list, and on no more than one or two nodes.`,
+  detailed: `Detail level: detailed. Use 6 to ${MAX_NODES} nodes. Give most nodes a short description. Where a node covers several concrete things, list them as up to 6 short items rather than crowding them into the description. Still leave items off the nodes that do not hold a list.`,
 };
 
 function wrapSource(text: string): string {
@@ -72,6 +84,7 @@ export function buildGeneratePrompt(input: {
   return [
     TYPE_GUIDE,
     SHAPE_GUIDE,
+    CONTENT_GUIDE,
     DETAIL_GUIDE[input.detail],
     typeInstruction(input.requestedType),
     wrapSource(input.text),
@@ -83,7 +96,7 @@ export function buildSimplifyPrompt(input: { text: string; spec: DiagramSpec }):
   return [
     `Here is an existing diagram of the text below:`,
     JSON.stringify(compact(input.spec)),
-    `Produce a simpler version of the same diagram. Use between 3 and 6 nodes. Keep the main idea and drop supporting detail. Keep the diagram type "${input.spec.type}".`,
+    `Produce a simpler version of the same diagram. Use between 3 and 6 nodes. Keep the main idea and drop supporting detail. Keep the diagram type "${input.spec.type}". Simpler means fewer bullets as well as fewer nodes, so drop item lists unless a node is essentially a list.`,
     wrapSource(input.text),
     `Return the simplified diagram as JSON only.`,
   ].join("\n\n");
@@ -93,7 +106,7 @@ export function buildAddDetailPrompt(input: { text: string; spec: DiagramSpec })
   return [
     `Here is an existing diagram of the text below:`,
     JSON.stringify(compact(input.spec)),
-    `Produce a more detailed version. Add nodes and descriptions that are supported by the text, without exceeding ${MAX_NODES} nodes. Keep the existing nodes where they still make sense and keep the diagram type "${input.spec.type}".`,
+    `Produce a more detailed version. Add nodes and descriptions that are supported by the text, without exceeding ${MAX_NODES} nodes. Where a node covers several concrete things, list them as up to 6 short items of under 6 words each, in plain text without bullet characters or numbering. Leave items off the nodes that do not hold a list. Keep the existing nodes where they still make sense and keep the diagram type "${input.spec.type}".`,
     wrapSource(input.text),
     `Return the expanded diagram as JSON only.`,
   ].join("\n\n");
@@ -108,6 +121,7 @@ export function buildChangeTypePrompt(input: {
   return [
     TYPE_GUIDE,
     SHAPE_GUIDE,
+    CONTENT_GUIDE,
     DETAIL_GUIDE[input.detail],
     `Here is an existing diagram of the text below:`,
     JSON.stringify(compact(input.spec)),
@@ -138,6 +152,7 @@ function compact(spec: DiagramSpec) {
       id: node.id,
       label: node.label,
       ...(node.description ? { description: node.description } : {}),
+      ...(node.items?.length ? { items: node.items } : {}),
       ...(node.category ? { category: node.category } : {}),
     })),
     edges: spec.edges.map((edge) => ({
