@@ -1,5 +1,6 @@
 import type { DiagramNode, DiagramSpec } from "@/diagrams/schema";
 import {
+  ICON_BOX,
   measureText,
   NODE_BOX,
   TEXT_WIDTH_RATIO,
@@ -23,7 +24,12 @@ export function measureNode(node: DiagramNode): MeasuredNode {
     : [];
   const itemLines = wrapItems(node.items ?? [], innerMax);
 
+  // The icon shares the text block's column, so it competes for width with the
+  // text rather than sitting beside it.
+  const iconHeight = node.icon ? ICON_BOX.size + ICON_BOX.gap : 0;
+
   const contentWidth = Math.max(
+    node.icon ? ICON_BOX.size : 0,
     widestLine(labelLines, TYPOGRAPHY.label.fontSize),
     widestLine(descriptionLines, TYPOGRAPHY.description.fontSize),
     widestLine(itemLines, TYPOGRAPHY.item.fontSize),
@@ -37,6 +43,7 @@ export function measureNode(node: DiagramNode): MeasuredNode {
 
   let height = Math.ceil(
     NODE_BOX.paddingY * 2 +
+      iconHeight +
       labelLines.length * TYPOGRAPHY.label.lineHeight +
       (descriptionLines.length
         ? NODE_BOX.gap + descriptionLines.length * TYPOGRAPHY.description.lineHeight

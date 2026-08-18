@@ -1,6 +1,6 @@
 import { DIAGRAM_TYPES } from "@/diagrams/schema";
 import { THEMES } from "@/themes";
-import type { ThemeId } from "@/themes";
+import type { Appearance, ThemeId } from "@/themes";
 import type { DetailLevel, RequestedDiagramType } from "@/types";
 import { log } from "@/utils/logger";
 
@@ -10,14 +10,19 @@ import { log } from "@/utils/logger";
  * user simply loses their choices when the window closes.
  */
 
+/** "system" is a standing deferral to the OS, not a third palette. */
+export type AppearancePreference = Appearance | "system";
+
 export interface Preferences {
   model: string;
   theme: ThemeId;
+  appearance: AppearancePreference;
   detail: DetailLevel;
   diagramType: RequestedDiagramType;
   onboardingComplete: boolean;
   exportScale: 1 | 2 | 3;
   transparentBackground: boolean;
+  imageAssets: boolean;
 }
 
 export const PREFERENCES_KEY = "openvisual.preferences";
@@ -25,11 +30,13 @@ export const PREFERENCES_KEY = "openvisual.preferences";
 export const DEFAULT_PREFERENCES: Preferences = {
   model: "qwen3:4b",
   theme: "minimal",
+  appearance: "system",
   detail: "balanced",
   diagramType: "auto",
   onboardingComplete: false,
   exportScale: 2,
   transparentBackground: false,
+  imageAssets: false,
 };
 
 const DETAIL_LEVELS: readonly string[] = ["simple", "balanced", "detailed"];
@@ -64,12 +71,15 @@ function merge(base: Preferences, patch: unknown): Preferences {
   return {
     model: isModelName(source.model) ? source.model.trim() : base.model,
     theme: isThemeId(source.theme) ? source.theme : base.theme,
+    appearance: isAppearance(source.appearance) ? source.appearance : base.appearance,
     detail: isDetailLevel(source.detail) ? source.detail : base.detail,
     diagramType: isDiagramType(source.diagramType) ? source.diagramType : base.diagramType,
     onboardingComplete:
       typeof source.onboardingComplete === "boolean"
         ? source.onboardingComplete
         : base.onboardingComplete,
+    imageAssets:
+      typeof source.imageAssets === "boolean" ? source.imageAssets : base.imageAssets,
     exportScale: isExportScale(source.exportScale) ? source.exportScale : base.exportScale,
     transparentBackground:
       typeof source.transparentBackground === "boolean"
@@ -84,6 +94,10 @@ function isModelName(value: unknown): value is string {
 
 function isThemeId(value: unknown): value is ThemeId {
   return typeof value === "string" && value in THEMES;
+}
+
+function isAppearance(value: unknown): value is AppearancePreference {
+  return value === "system" || value === "light" || value === "dark";
 }
 
 function isDetailLevel(value: unknown): value is DetailLevel {

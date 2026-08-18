@@ -1,5 +1,6 @@
 import type { DiagramSpec, DiagramType } from "@/diagrams/schema";
 import { MAX_NODES, MIN_NODES } from "@/diagrams/schema";
+import { DIAGRAM_ICONS } from "@/diagrams/icons";
 import type { DetailLevel, RequestedDiagramType } from "@/types";
 
 /**
@@ -52,7 +53,16 @@ const TYPE_GUIDE = `Diagram types:
 Directions: use "vertical" for top-down flows and hierarchies, "horizontal" for timelines and comparisons, "radial" for cycle and hub_spoke.`;
 
 const SHAPE_GUIDE = `Shapes: "rounded" for steps and events, "rectangle" for things and parts, "diamond" for decisions, "circle" for a central idea.
-Emphasis: "primary" for the few most important nodes, "secondary" for supporting ones, "neutral" for detail.`;
+Emphasis: "primary" for the few most important nodes, "secondary" for supporting ones, "neutral" for detail.
+
+`;
+
+/*
+ * Only ever included when the user has switched image assets on. With the
+ * toggle off the model is never told the field exists, so it cannot spend
+ * tokens on it or attach a glyph nobody asked for.
+ */
+const ICON_GUIDE = `Icons: "icon" is optional and must be one of ${DIAGRAM_ICONS.join(", ")}. Choose one only when a node has an obvious real-world counterpart in that list — a database, a warning, a person. Naming the wrong glyph is worse than naming none, and icons on every node make the diagram noisier, not clearer, so leave "icon" off most nodes.`;
 
 const CONTENT_GUIDE = `Node text: the label names the node in a few words. Add a "description" when one sentence of prose is needed to explain it. Add "items" when the node holds a list of concrete things — symptoms, inputs, outputs, checks — that read better as separate bullets than as a sentence.
 
@@ -80,11 +90,13 @@ export function buildGeneratePrompt(input: {
   text: string;
   requestedType: RequestedDiagramType;
   detail: DetailLevel;
+  icons: boolean;
 }): string {
   return [
     TYPE_GUIDE,
     SHAPE_GUIDE,
     CONTENT_GUIDE,
+    ...(input.icons ? [ICON_GUIDE] : []),
     DETAIL_GUIDE[input.detail],
     typeInstruction(input.requestedType),
     wrapSource(input.text),
@@ -102,8 +114,13 @@ export function buildSimplifyPrompt(input: { text: string; spec: DiagramSpec }):
   ].join("\n\n");
 }
 
-export function buildAddDetailPrompt(input: { text: string; spec: DiagramSpec }): string {
+export function buildAddDetailPrompt(input: {
+  text: string;
+  spec: DiagramSpec;
+  icons: boolean;
+}): string {
   return [
+    ...(input.icons ? [ICON_GUIDE] : []),
     `Here is an existing diagram of the text below:`,
     JSON.stringify(compact(input.spec)),
     `Produce a more detailed version. Add nodes and descriptions that are supported by the text, without exceeding ${MAX_NODES} nodes. Where a node covers several concrete things, list them as up to 6 short items of under 6 words each, in plain text without bullet characters or numbering. Leave items off the nodes that do not hold a list. Keep the existing nodes where they still make sense and keep the diagram type "${input.spec.type}".`,
@@ -117,11 +134,13 @@ export function buildChangeTypePrompt(input: {
   spec: DiagramSpec;
   targetType: DiagramType;
   detail: DetailLevel;
+  icons: boolean;
 }): string {
   return [
     TYPE_GUIDE,
     SHAPE_GUIDE,
     CONTENT_GUIDE,
+    ...(input.icons ? [ICON_GUIDE] : []),
     DETAIL_GUIDE[input.detail],
     `Here is an existing diagram of the text below:`,
     JSON.stringify(compact(input.spec)),
@@ -154,6 +173,7 @@ function compact(spec: DiagramSpec) {
       ...(node.description ? { description: node.description } : {}),
       ...(node.items?.length ? { items: node.items } : {}),
       ...(node.category ? { category: node.category } : {}),
+      ...(node.icon ? { icon: node.icon } : {}),
     })),
     edges: spec.edges.map((edge) => ({
       id: edge.id,

@@ -28,11 +28,14 @@ vi.hoisted(() => {
 import {
   accentIndexFor,
   convertLayoutToExcalidraw,
+  iconFilesFor,
   restyleExcalidrawElements,
 } from "@/diagrams/convertToExcalidraw";
+import type { ExcalidrawScene } from "@/diagrams/convertToExcalidraw";
 import { FIXTURE_LIST, FIXTURES } from "@/diagrams/fixtures";
 import { layoutDiagram } from "@/diagrams/layout";
-import { NODE_BOX } from "@/diagrams/typography";
+import { ICON_BOX, NODE_BOX } from "@/diagrams/typography";
+import { DIAGRAM_ICONS } from "@/diagrams/icons";
 import { ACCENT_COUNT, THEME_LIST, THEMES } from "@/themes";
 import type { DiagramSpec, DiagramType, NodeEmphasis, NodeShape } from "@/diagrams/schema";
 import type { DiagramTheme, NodePalette } from "@/themes";
@@ -47,7 +50,7 @@ interface Box {
 
 const SHAPES: NodeShape[] = ["rectangle", "rounded", "circle", "diamond"];
 const TYPES = FIXTURE_LIST.map((spec) => spec.type);
-const rendered = new Map<DiagramType, ExcalidrawElement[]>();
+const rendered = new Map<DiagramType, ExcalidrawScene>();
 
 /** Every fixture node carrying items, so the item assertions cannot pass vacuously. */
 const ITEM_NODES = FIXTURE_LIST.flatMap((spec) =>
@@ -63,19 +66,27 @@ beforeAll(async () => {
   }
 });
 
+async function renderScene(
+  spec: DiagramSpec,
+  theme: DiagramTheme,
+  options?: { includeTitle: boolean },
+): Promise<ExcalidrawScene> {
+  const layout = await layoutDiagram(spec);
+  return convertLayoutToExcalidraw(spec, layout, theme, options);
+}
+
 async function render(
   spec: DiagramSpec,
   theme: DiagramTheme,
   options?: { includeTitle: boolean },
 ): Promise<ExcalidrawElement[]> {
-  const layout = await layoutDiagram(spec);
-  return convertLayoutToExcalidraw(spec, layout, theme, options);
+  return (await renderScene(spec, theme, options)).elements;
 }
 
 function elementsFor(type: DiagramType): ExcalidrawElement[] {
-  const elements = rendered.get(type);
-  if (!elements) throw new Error(`fixture ${type} was not rendered`);
-  return elements;
+  const scene = rendered.get(type);
+  if (!scene) throw new Error(`fixture ${type} was not rendered`);
+  return scene.elements;
 }
 
 function byId(elements: ExcalidrawElement[], id: string): ExcalidrawElement {
@@ -698,5 +709,183 @@ describe("restyleExcalidrawElements", () => {
     expect(user).toBe(userElement);
     expect(user.strokeColor).toBe("#123456");
     expect(user.backgroundColor).toBe("#654321");
+  });
+});
+
+describe("node icons", () => {
+  /** The one http-looking string in a glyph, and the only one allowed. */
+  const SVG_NAMESPACE = ' xmlns="http://www.w3.org/2000/svg"';
+
+  /** One node per icon, in every shape, so no glyph escapes the assertions. */
+  function iconSpec(shape: NodeShape, described: boolean): DiagramSpec {
+    return {
+      version: 1,
+      title: "Icon geometry check",
+      type: "flowchart",
+      direction: "vertical",
+      nodes: DIAGRAM_ICONS.map((icon, index) => ({
+        id: `${shape}-${icon}`,
+        label: "Investigate the failing requests",
+        ...(described
+          ? { description: "The evidence that explains what changed in production." }
+          : {}),
+        // Only some nodes carry items, so both the tall and the short stack are
+        // measured against a box the icon has already pushed down.
+        ...(index % 3 === 0
+          ? { items: ["Latency and error rates everywhere", "Check the deploy log"] }
+          : {}),
+        emphasis: "secondary" as const,
+        shape,
+        icon,
+      })),
+      edges: [],
+    };
+  }
+
+  const CASES = SHAPES.flatMap((shape) => [
+    { shape, described: false },
+    { shape, described: true },
+  ]);
+
+  it.each(CASES)(
+    "keeps the icon and every text block inside a $shape node (described: $described)",
+    async ({ shape, described }) => {
+      const spec = iconSpec(shape, described);
+      const elements = await render(spec, THEMES.minimal);
+
+      for (const node of spec.nodes) {
+        const where = node.id;
+        const container = boxOf(byId(elements, `node-${node.id}`));
+        const icon = byId(elements, `node-${node.id}-icon`);
+        const label = boxOf(labelTextOf(elements, node.id));
+
+        expect(icon.type, `${where} icon`).toBe("image");
+
+        const iconBox = boxOf(icon);
+        expect(iconBox.width, `${where} icon width`).toBe(ICON_BOX.size);
+        expect(iconBox.height, `${where} icon height`).toBe(ICON_BOX.size);
+
+        expectContained(iconBox, container, `${where} icon`);
+        expectInsideShape(iconBox, container, shape, `${where} icon`);
+        expectContained(label, container, `${where} label`);
+        expectInsideShape(label, container, shape, `${where} label`);
+
+        // The icon sits above the whole text stack and touches none of it.
+        let above = iconBox;
+        for (const part of ["label", "description", "items"] as const) {
+          const element =
+            part === "label"
+              ? labelTextOf(elements, node.id)
+              : elements.find((candidate) => candidate.id === `node-${node.id}-${part}`);
+          if (!element) continue;
+
+          const box = boxOf(element);
+          expectContained(box, container, `${where} ${part}`);
+          expectInsideShape(box, container, shape, `${where} ${part}`);
+          expect(
+            above.y + above.height,
+            `${where} ${part} overlaps the block above it`,
+          ).toBeLessThanOrEqual(box.y);
+          above = box;
+        }
+      }
+    },
+  );
+
+  it("frees the text of an icon-only node instead of binding it under the glyph", async () => {
+    const spec: DiagramSpec = {
+      version: 1,
+      title: "Icon only",
+      type: "flowchart",
+      direction: "vertical",
+      nodes: [
+        {
+          id: "warn",
+          label: "Check the alert",
+          emphasis: "primary",
+          shape: "rounded",
+          icon: "alert",
+        },
+        { id: "plain", label: "No glyph here", emphasis: "primary", shape: "rounded" },
+      ],
+      edges: [],
+    };
+    const elements = await render(spec, THEMES.minimal);
+
+    expect(byId(elements, "node-warn-label").type).toBe("text");
+    expect(boundTextOf(elements, "node-warn")).toBeUndefined();
+
+    // The node without an icon still uses bound text, so nothing regressed.
+    expect(boundTextOf(elements, "node-plain")).toBeDefined();
+    expect(elements.some((element) => element.id === "node-plain-icon")).toBe(false);
+  });
+
+  it("ships a file for every icon element and never references the network", async () => {
+    const spec = iconSpec("rectangle", true);
+    const scene = await renderScene(spec, THEMES.minimal);
+
+    for (const node of spec.nodes) {
+      const icon = byId(scene.elements, `node-${node.id}-icon`);
+      const fileId = "fileId" in icon ? icon.fileId : null;
+
+      expect(fileId, `${node.id} icon fileId`).toBeTruthy();
+      expect(fileId && scene.files[fileId], `${node.id} icon payload`).toBeDefined();
+    }
+
+    const payloads = Object.values(scene.files);
+    expect(payloads.length).toBe(DIAGRAM_ICONS.length);
+    for (const file of payloads) {
+      expect(file.mimeType).toBe("image/svg+xml");
+      expect(file.dataURL.startsWith("data:image/svg+xml,")).toBe(true);
+
+      // The SVG namespace is an identifier a renderer matches on, never a URL
+      // it fetches, so it is removed before the payload is checked for anything
+      // that would actually reach the network.
+      const svg = decodeURIComponent(file.dataURL).replace(SVG_NAMESPACE, "");
+      expect(svg, "icon payload reaches outside the bundle").not.toMatch(
+        /https?:|\/\/|url\(|xlink|href|<image|<use|<script|<foreignObject/i,
+      );
+    }
+  });
+
+  it("renders the same scene twice for the same spec and theme", async () => {
+    const spec = iconSpec("rounded", true);
+    const first = await renderScene(spec, THEMES.minimal);
+    const second = await renderScene(spec, THEMES.minimal);
+
+    expect(Object.keys(second.files).sort()).toEqual(Object.keys(first.files).sort());
+    expect(second.files).toEqual(first.files);
+  });
+
+  it("takes the icon colour from the theme, so a restyle repoints every glyph", async () => {
+    const spec = iconSpec("rectangle", false);
+    const minimal = await renderScene(spec, THEMES.minimal);
+    const dark = THEMES["dark-technical"];
+
+    const after = restyleExcalidrawElements(minimal.elements, spec, dark);
+    const files = iconFilesFor(spec, dark);
+
+    for (const node of spec.nodes) {
+      const before = byId(minimal.elements, `node-${node.id}-icon`);
+      const now = byId(after, `node-${node.id}-icon`);
+      const fileId = "fileId" in now ? now.fileId : null;
+      const wasFileId = "fileId" in before ? before.fileId : null;
+
+      expect(fileId, `${node.id} kept its light-theme payload`).not.toBe(wasFileId);
+      expect(fileId && files[fileId], `${node.id} rebuilt payload`).toBeDefined();
+    }
+
+    // The colour is the accent's, not anything the spec could have supplied.
+    const sample = spec.nodes[0];
+    const rebuilt = iconFilesFor(spec, dark);
+    const stroke = accentOf(dark, spec, sample.id).text;
+    const payload = Object.values(rebuilt).map((file) => decodeURIComponent(file.dataURL));
+    expect(payload.some((svg) => svg.includes(`stroke="${stroke}"`))).toBe(true);
+  });
+
+  it("rebuilds exactly the payloads a spec needs and nothing more", () => {
+    const withIcons = iconSpec("rectangle", false);
+    expect(Object.keys(iconFilesFor(withIcons, THEMES.minimal))).toHaveLength(DIAGRAM_ICONS.length);
+    expect(iconFilesFor(FIXTURES.flowchart, THEMES.minimal)).toEqual({});
   });
 });

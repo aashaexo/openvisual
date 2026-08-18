@@ -11,8 +11,14 @@
 
 export type ThemeId = "minimal" | "editorial" | "dark-technical";
 
-/** Excalidraw's own light/dark canvas mode. */
-export type CanvasMode = "light" | "dark";
+/**
+ * The app chrome's light/dark setting.
+ *
+ * Deliberately not a property of the theme: the theme owns the artwork the
+ * user exports, so someone drafting light diagrams for a white slide deck must
+ * still be able to work in a dark app.
+ */
+export type Appearance = "light" | "dark";
 
 export type FillStyle = "hachure" | "cross-hatch" | "solid";
 export type StrokeWidth = 1 | 2 | 4;
@@ -39,8 +45,6 @@ export interface DiagramTheme {
   id: ThemeId;
   name: string;
   description: string;
-  /** Drives Excalidraw's own UI theme and the app chrome. */
-  mode: CanvasMode;
   canvas: {
     background: string;
     /** Transparent-background exports still use this for PNG-with-background. */
@@ -75,15 +79,19 @@ export interface DiagramTheme {
     subtitleColor: string;
     font: ThemeFont;
   };
-  /** Applied to the app chrome as CSS custom properties. */
-  ui: Record<string, string>;
+  /**
+   * The --ov-* custom properties for the app chrome, in both appearances.
+   *
+   * Every theme carries both so appearance can be chosen freely: nothing above
+   * this field changes with it, because those colours are the drawing itself.
+   */
+  chrome: Record<Appearance, Record<string, string>>;
 }
 
 const minimal: DiagramTheme = {
   id: "minimal",
   name: "Minimal",
   description: "White canvas, hand-drawn type, thin grey connectors, one accent.",
-  mode: "light",
   canvas: { background: "#ffffff", exportBackground: "#ffffff", gridSize: null },
   node: {
     primary: { background: "#eef2ff", stroke: "#1f2937", text: "#111827" },
@@ -111,17 +119,33 @@ const minimal: DiagramTheme = {
     font: "Excalifont",
   },
   title: { color: "#111827", subtitleColor: "#6b7280", font: "Excalifont" },
-  ui: {
-    "--ov-bg": "#f7f7f8",
-    "--ov-panel": "#ffffff",
-    "--ov-panel-alt": "#fafafa",
-    "--ov-border": "#e5e7eb",
-    "--ov-text": "#111827",
-    "--ov-muted": "#6b7280",
-    "--ov-accent": "#4f46e5",
-    "--ov-accent-contrast": "#ffffff",
-    "--ov-danger": "#b91c1c",
-    "--ov-focus": "#4f46e5",
+  chrome: {
+    light: {
+      "--ov-bg": "#f7f7f8",
+      "--ov-panel": "#ffffff",
+      "--ov-panel-alt": "#fafafa",
+      "--ov-border": "#e5e7eb",
+      "--ov-text": "#111827",
+      "--ov-muted": "#6b7280",
+      "--ov-accent": "#4f46e5",
+      "--ov-accent-contrast": "#ffffff",
+      "--ov-danger": "#b91c1c",
+      "--ov-focus": "#4f46e5",
+    },
+    // Indigo is lifted from #4f46e5 to #8b90ff because the light value scores
+    // 1.9:1 on this background — legible on white, invisible here.
+    dark: {
+      "--ov-bg": "#0f1012",
+      "--ov-panel": "#17181b",
+      "--ov-panel-alt": "#1f2024",
+      "--ov-border": "#33353b",
+      "--ov-text": "#f2f3f5",
+      "--ov-muted": "#a1a5ad",
+      "--ov-accent": "#8b90ff",
+      "--ov-accent-contrast": "#101119",
+      "--ov-danger": "#f87171",
+      "--ov-focus": "#a5a9ff",
+    },
   },
 };
 
@@ -129,7 +153,6 @@ const editorial: DiagramTheme = {
   id: "editorial",
   name: "Editorial",
   description: "Warm paper, charcoal type, muted orange accent, hand-drawn shapes.",
-  mode: "light",
   canvas: { background: "#fbf7f0", exportBackground: "#fbf7f0", gridSize: null },
   node: {
     primary: { background: "#f6dfc4", stroke: "#7c3a10", text: "#2b2621" },
@@ -157,17 +180,33 @@ const editorial: DiagramTheme = {
     font: "Excalifont",
   },
   title: { color: "#2b2621", subtitleColor: "#7a6f61", font: "Excalifont" },
-  ui: {
-    "--ov-bg": "#f3ece1",
-    "--ov-panel": "#fbf7f0",
-    "--ov-panel-alt": "#f6f0e6",
-    "--ov-border": "#e0d5c4",
-    "--ov-text": "#2b2621",
-    "--ov-muted": "#7a6f61",
-    "--ov-accent": "#c2661f",
-    "--ov-accent-contrast": "#fffaf3",
-    "--ov-danger": "#a3311b",
-    "--ov-focus": "#c2661f",
+  chrome: {
+    light: {
+      "--ov-bg": "#f3ece1",
+      "--ov-panel": "#fbf7f0",
+      "--ov-panel-alt": "#f6f0e6",
+      "--ov-border": "#e0d5c4",
+      "--ov-text": "#2b2621",
+      "--ov-muted": "#7a6f61",
+      "--ov-accent": "#c2661f",
+      "--ov-accent-contrast": "#fffaf3",
+      "--ov-danger": "#a3311b",
+      "--ov-focus": "#c2661f",
+    },
+    // Editorial's warmth survives the inversion by keeping the same red-yellow
+    // bias in the neutrals, rather than falling back to Minimal's grey.
+    dark: {
+      "--ov-bg": "#14110d",
+      "--ov-panel": "#1c1813",
+      "--ov-panel-alt": "#241f18",
+      "--ov-border": "#3d362c",
+      "--ov-text": "#f5efe4",
+      "--ov-muted": "#b0a593",
+      "--ov-accent": "#e08a3c",
+      "--ov-accent-contrast": "#1a1209",
+      "--ov-danger": "#f08a72",
+      "--ov-focus": "#e8a866",
+    },
   },
 };
 
@@ -175,7 +214,6 @@ const darkTechnical: DiagramTheme = {
   id: "dark-technical",
   name: "Dark technical",
   description: "Near-black canvas, light type, blue-violet accents, subtle grid.",
-  mode: "dark",
   canvas: { background: "#0e1116", exportBackground: "#0e1116", gridSize: 20 },
   node: {
     primary: { background: "#1e293b", stroke: "#818cf8", text: "#e5e7eb" },
@@ -203,17 +241,33 @@ const darkTechnical: DiagramTheme = {
     font: "Cascadia",
   },
   title: { color: "#f3f4f6", subtitleColor: "#94a3b8", font: "Cascadia" },
-  ui: {
-    "--ov-bg": "#0b0e12",
-    "--ov-panel": "#12161c",
-    "--ov-panel-alt": "#171d25",
-    "--ov-border": "#252d38",
-    "--ov-text": "#e6e9ee",
-    "--ov-muted": "#94a3b8",
-    "--ov-accent": "#818cf8",
-    "--ov-accent-contrast": "#0b0e12",
-    "--ov-danger": "#f87171",
-    "--ov-focus": "#a5b4fc",
+  chrome: {
+    // Cool blue-grey rather than Minimal's neutral, so a light app around a
+    // dark-technical diagram still reads as the same theme.
+    light: {
+      "--ov-bg": "#eef1f6",
+      "--ov-panel": "#ffffff",
+      "--ov-panel-alt": "#f5f7fb",
+      "--ov-border": "#c9d2e0",
+      "--ov-text": "#131922",
+      "--ov-muted": "#566072",
+      "--ov-accent": "#4338ca",
+      "--ov-accent-contrast": "#ffffff",
+      "--ov-danger": "#b42318",
+      "--ov-focus": "#4338ca",
+    },
+    dark: {
+      "--ov-bg": "#0b0e12",
+      "--ov-panel": "#12161c",
+      "--ov-panel-alt": "#171d25",
+      "--ov-border": "#252d38",
+      "--ov-text": "#e6e9ee",
+      "--ov-muted": "#94a3b8",
+      "--ov-accent": "#818cf8",
+      "--ov-accent-contrast": "#0b0e12",
+      "--ov-danger": "#f87171",
+      "--ov-focus": "#a5b4fc",
+    },
   },
 };
 
@@ -232,11 +286,26 @@ export function getTheme(id: string | undefined): DiagramTheme {
   return THEMES[DEFAULT_THEME_ID];
 }
 
-/** Writes the theme's chrome variables onto an element (normally <html>). */
-export function applyThemeVariables(theme: DiagramTheme, target: HTMLElement): void {
-  for (const [key, value] of Object.entries(theme.ui)) {
+/** Writes one chrome palette onto an element (normally <html>). */
+export function applyThemeVariables(
+  theme: DiagramTheme,
+  appearance: Appearance,
+  target: HTMLElement,
+): void {
+  /*
+   * Clearing first means a palette that omits a variable falls back to the
+   * stylesheet default rather than silently inheriting the value the previous
+   * appearance left behind — which is how dark text ends up on a dark panel.
+   */
+  for (const name of Array.from(target.style)) {
+    if (name.startsWith("--ov-")) target.style.removeProperty(name);
+  }
+  for (const [key, value] of Object.entries(theme.chrome[appearance])) {
     target.style.setProperty(key, value);
   }
-  target.dataset.themeMode = theme.mode;
-  target.style.colorScheme = theme.mode;
+
+  // Both follow the appearance, never the theme: the diagram's own darkness
+  // says nothing about how the app around it should be painted.
+  target.dataset.themeMode = appearance;
+  target.style.colorScheme = appearance;
 }

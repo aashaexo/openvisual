@@ -28,6 +28,8 @@ export interface GenerationRequest {
   text: string;
   model: string;
   detail: DetailLevel;
+  /** Off by default: the model is not told icons exist unless asked. */
+  icons: boolean;
   requestedType: RequestedDiagramType;
   /** Required by simplify, add_detail and change_type. */
   currentSpec?: DiagramSpec | null;
@@ -146,13 +148,19 @@ function buildPrompt(request: GenerationRequest, text: string): string {
     }
     case "add_detail": {
       const spec = requireSpec(request);
-      return buildAddDetailPrompt({ text, spec });
+      return buildAddDetailPrompt({ text, spec, icons: request.icons });
     }
     case "change_type": {
       const spec = requireSpec(request);
       const targetType = request.targetType;
       if (!targetType) throw createAppError("unknown", "change_type without a target type");
-      return buildChangeTypePrompt({ text, spec, targetType, detail: request.detail });
+      return buildChangeTypePrompt({
+        text,
+        spec,
+        targetType,
+        detail: request.detail,
+        icons: request.icons,
+      });
     }
     case "generate":
     case "regenerate":
@@ -161,6 +169,7 @@ function buildPrompt(request: GenerationRequest, text: string): string {
         text,
         requestedType: request.requestedType,
         detail: request.detail,
+        icons: request.icons,
       });
   }
 }

@@ -33,6 +33,18 @@ export const NODE_BOX = {
 } as const;
 
 /**
+ * The box an optional node icon occupies at the top of the text block.
+ *
+ * Fixed rather than derived from the font, so turning icons on shifts every
+ * node by exactly the same amount and layout stays reproducible.
+ */
+export const ICON_BOX = {
+  size: 28,
+  /** Gap between the icon and the label beneath it. */
+  gap: 8,
+} as const;
+
+/**
  * Fraction of a node's width that text may occupy.
  *
  * A circle and a diamond only offer their inscribed rectangle, so text has to

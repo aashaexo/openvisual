@@ -14,6 +14,7 @@ import { getTheme } from "@/themes";
 export function CanvasPanel() {
   const themeId = useAppStore((s) => s.themeId);
   const theme = useMemo(() => getTheme(themeId), [themeId]);
+  const appearance = useAppStore((s) => s.resolvedAppearance);
 
   const status = useAppStore((s) => s.status);
   const error = useAppStore((s) => s.error);
@@ -37,7 +38,14 @@ export function CanvasPanel() {
           <Excalidraw
             excalidrawAPI={(api: ExcalidrawImperativeAPI) => setCanvasApi(api)}
             onChange={onSceneChange}
-            theme={theme.mode}
+            /*
+             * The appearance, not the diagram theme: this only styles
+             * Excalidraw's own chrome, which belongs with the rest of the app.
+             * The drawing is unaffected — index.css disables the dark-mode
+             * inversion filter, and viewBackgroundColor below stays the
+             * theme's, so a light diagram in a dark app still reads white.
+             */
+            theme={appearance}
             initialData={{
               appState: {
                 viewBackgroundColor: theme.canvas.background,

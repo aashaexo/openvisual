@@ -1,9 +1,18 @@
 import { convertToExcalidrawElements, FONT_FAMILY, ROUNDNESS } from "@excalidraw/excalidraw";
 import type { ExcalidrawElementSkeleton } from "@excalidraw/excalidraw/data/transform";
-import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import type { ExcalidrawElement, FileId } from "@excalidraw/excalidraw/element/types";
+import type { BinaryFileData, BinaryFiles, DataURL } from "@excalidraw/excalidraw/types";
 import type { DiagramNode, DiagramSpec, NodeEmphasis } from "@/diagrams/schema";
+import type { DiagramIcon } from "@/diagrams/icons";
+import { iconDataUrl } from "@/diagrams/icons";
 import type { DiagramLayout, PositionedNode } from "@/diagrams/layouts/types";
-import { measureText, NODE_BOX, TEXT_WIDTH_RATIO, TYPOGRAPHY } from "@/diagrams/typography";
+import {
+  ICON_BOX,
+  measureText,
+  NODE_BOX,
+  TEXT_WIDTH_RATIO,
+  TYPOGRAPHY,
+} from "@/diagrams/typography";
 import { ACCENT_COUNT } from "@/themes";
 import type { DiagramTheme, NodePalette, ThemeFont } from "@/themes";
 
@@ -18,6 +27,16 @@ import type { DiagramTheme, NodePalette, ThemeFont } from "@/themes";
 
 export interface ConvertOptions {
   includeTitle?: boolean;
+}
+
+/**
+ * A scene is elements plus the binary payloads they reference. Icons are
+ * `image` elements, and an image element without its file entry renders as a
+ * broken placeholder — so the two always travel together.
+ */
+export interface ExcalidrawScene {
+  elements: ExcalidrawElement[];
+  files: BinaryFiles;
 }
 
 const FONT_MAP: Record<ThemeFont, number> = {
@@ -37,8 +56,9 @@ export function convertLayoutToExcalidraw(
   layout: DiagramLayout,
   theme: DiagramTheme,
   options: ConvertOptions = {},
-): ExcalidrawElement[] {
+): ExcalidrawScene {
   const skeletons: ExcalidrawElementSkeleton[] = [];
+  const files: BinaryFiles = {};
 
   if (options.includeTitle !== false) {
     skeletons.push(...titleSkeletons(spec, theme));
@@ -47,7 +67,7 @@ export function convertLayoutToExcalidraw(
     skeletons.push(decorationSkeleton(decoration, theme));
   }
   for (const node of layout.nodes) {
-    skeletons.push(...nodeSkeletons(node, theme, accentFor(spec, theme, node.id)));
+    skeletons.push(...nodeSkeletons(node, theme, accentFor(spec, theme, node.id), files));
   }
   for (const edge of layout.edges) {
     skeletons.push(edgeSkeleton(edge, theme));
@@ -70,11 +90,14 @@ export function convertLayoutToExcalidraw(
     intended.set(id, box);
   }
 
-  return elements.map((element) => {
-    const box = intended.get(element.id);
-    if (!box || element.type !== "text") return element;
-    return { ...element, ...box, autoResize: false };
-  });
+  return {
+    elements: elements.map((element) => {
+      const box = intended.get(element.id);
+      if (!box || element.type !== "text") return element;
+      return { ...element, ...box, autoResize: false };
+    }),
+    files,
+  };
 }
 
 interface TextBox {
@@ -82,6 +105,62 @@ interface TextBox {
   y: number;
   width: number;
   height: number;
+}
+
+/**
+ * Excalidraw stores an image's bytes separately from the element, keyed by
+ * `fileId`. The id is derived from the payload rather than generated, so the
+ * same spec in the same theme always yields the same scene — a random id would
+ * make every re-render a spurious change and defeat file de-duplication.
+ */
+function iconFile(icon: DiagramIcon, color: string): { fileId: FileId; file: BinaryFileData } {
+  const dataURL = iconDataUrl(icon, color);
+  const fileId = `icon-${icon}-${hashString(dataURL)}` as FileId;
+
+  return {
+    fileId,
+    file: {
+      id: fileId,
+      mimeType: "image/svg+xml",
+      dataURL: dataURL as DataURL,
+      // A wall-clock timestamp would make an otherwise identical scene differ
+      // on every render; nothing in the renderer reads this field.
+      created: ICON_FILE_CREATED,
+    },
+  };
+}
+
+/** Epoch stamp shared by every generated icon — see iconFile(). */
+const ICON_FILE_CREATED = 0;
+
+/**
+ * Every icon payload a spec needs, rebuilt from the spec alone.
+ *
+ * Excalidraw keeps an image's bytes outside the element, so a scene restored
+ * from storage or repainted into another theme arrives with elements whose
+ * files are missing or stale. Regenerating is safe precisely because the ids
+ * are derived: the same spec and theme always rebuild the same entries.
+ */
+export function iconFilesFor(spec: DiagramSpec, theme: DiagramTheme): BinaryFiles {
+  const files: BinaryFiles = {};
+
+  for (const node of spec.nodes) {
+    if (!node.icon) continue;
+    const { fileId, file } = iconFile(node.icon, accentFor(spec, theme, node.id).text);
+    files[fileId] = file;
+  }
+
+  return files;
+}
+
+/** FNV-1a; short, stable across runs, and not used for anything security-bearing. */
+function hashString(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
 }
 
 /**
@@ -140,22 +219,34 @@ function itemsId(nodeId: string): string {
   return `${NODE_ELEMENT_PREFIX}${nodeId}-items`;
 }
 
-/** Suffixes that turn a node id into one of its text element ids. */
-const TEXT_ELEMENT_SUFFIX = /-(description|items|label)$/;
+function iconId(nodeId: string): string {
+  return `${NODE_ELEMENT_PREFIX}${nodeId}-icon`;
+}
 
-/** A node places its own text as soon as it carries anything below the label. */
+/** Suffixes that turn a node id into one of its part element ids. */
+const NODE_PART_SUFFIX = /-(description|items|label|icon)$/;
+
+/**
+ * A node places its own text as soon as it carries anything besides the label.
+ *
+ * An icon counts: bound text centres itself in the whole container, which would
+ * sit it straight on top of the glyph.
+ */
 function placesOwnText(node: PositionedNode): boolean {
-  return node.descriptionLines.length > 0 || node.itemLines.length > 0;
+  return (
+    node.descriptionLines.length > 0 || node.itemLines.length > 0 || node.node.icon !== undefined
+  );
 }
 
 interface NodeTextBlock {
+  icon: TextBox | null;
   label: TextBox;
   description: TextBox | null;
   items: TextBox | null;
 }
 
 /**
- * Label, description and items laid out as one vertically centred block.
+ * Icon, label, description and items laid out as one vertically centred block.
  *
  * Excalidraw positions *bound* text differently inside each container shape
  * (an ellipse insets it, a rectangle pins it near the top), so a node that
@@ -169,17 +260,35 @@ function textBlock(node: PositionedNode): NodeTextBlock {
   const width = Math.round(node.width * TEXT_WIDTH_RATIO[node.node.shape]);
   const x = Math.round(node.x + (node.width - width) / 2);
 
+  const iconHeight = node.node.icon ? ICON_BOX.size + ICON_BOX.gap : 0;
   const labelHeight = node.labelLines.length * TYPOGRAPHY.label.lineHeight;
   const descriptionHeight = node.descriptionLines.length * TYPOGRAPHY.description.lineHeight;
   const itemsHeight = node.itemLines.length * TYPOGRAPHY.item.lineHeight;
 
   const blockHeight =
+    iconHeight +
     labelHeight +
     (descriptionHeight ? NODE_BOX.gap + descriptionHeight : 0) +
     (itemsHeight ? NODE_BOX.itemGap + itemsHeight : 0);
   const top = Math.round(node.y + (node.height - blockHeight) / 2);
 
-  let cursor = top + labelHeight;
+  let cursor = top;
+
+  let icon: TextBox | null = null;
+  if (iconHeight) {
+    // Square and centred on the node's own axis, not the text column's: the
+    // text column is narrowed by TEXT_WIDTH_RATIO but shares the same centre.
+    icon = {
+      x: Math.round(node.x + (node.width - ICON_BOX.size) / 2),
+      y: cursor,
+      width: ICON_BOX.size,
+      height: ICON_BOX.size,
+    };
+    cursor += iconHeight;
+  }
+
+  const label = { x, y: cursor, width, height: labelHeight };
+  cursor += labelHeight;
 
   let description: TextBox | null = null;
   if (descriptionHeight) {
@@ -194,7 +303,7 @@ function textBlock(node: PositionedNode): NodeTextBlock {
     items = { x, y: cursor, width, height: itemsHeight };
   }
 
-  return { label: { x, y: top, width, height: labelHeight }, description, items };
+  return { icon, label, description, items };
 }
 
 /**
@@ -294,7 +403,7 @@ export function restyleExcalidrawElements(
     // it, so the whole id is tried first — otherwise a node genuinely named
     // "…-label" would repaint as its neighbour.
     const rest = id.slice(NODE_ELEMENT_PREFIX.length);
-    return nodesById.get(rest) ?? nodesById.get(rest.replace(TEXT_ELEMENT_SUFFIX, "")) ?? null;
+    return nodesById.get(rest) ?? nodesById.get(rest.replace(NODE_PART_SUFFIX, "")) ?? null;
   };
 
   return elements.map((element) => {
@@ -315,6 +424,13 @@ export function restyleExcalidrawElements(
     const owner = nodeForElementId(element.id);
     if (owner) {
       const accent = accentFor(spec, theme, owner.id);
+      // An icon's colour is baked into its payload, so repainting it means
+      // pointing the element at a differently-coloured file. The matching
+      // entry comes from iconFilesFor(), which derives the same id.
+      if (element.type === "image") {
+        if (!owner.icon) return element;
+        return patch({ fileId: iconFile(owner.icon, accent.text).fileId });
+      }
       if (element.type === "text") return patch({ strokeColor: accent.text });
       return patch({
         strokeColor: accent.stroke,
@@ -351,6 +467,7 @@ function nodeSkeletons(
   node: PositionedNode,
   theme: DiagramTheme,
   accent: NodePalette,
+  files: BinaryFiles,
 ): ExcalidrawElementSkeleton[] {
   const groupId = `group-${node.id}`;
   const ownText = placesOwnText(node);
@@ -398,6 +515,24 @@ function nodeSkeletons(
 
   const block = textBlock(node);
   const skeletons: ExcalidrawElementSkeleton[] = [container];
+
+  if (node.node.icon && block.icon) {
+    // The glyph is stroked in the accent's text colour, so it reads as part of
+    // the label rather than as a pasted-in picture.
+    const { fileId, file } = iconFile(node.node.icon, accent.text);
+    files[fileId] = file;
+
+    skeletons.push({
+      type: "image",
+      id: iconId(node.id),
+      ...block.icon,
+      fileId,
+      // Not "pending": the payload is generated in-process and always travels
+      // with the element, so there is never a fetch to wait for.
+      status: "saved" as const,
+      groupIds: [groupId],
+    } as unknown as ExcalidrawElementSkeleton);
+  }
 
   skeletons.push({
     type: "text",

@@ -1,6 +1,7 @@
 import { setOllamaTransport } from "@/ai/client";
 import { MAX_INPUT_CHARS, runGeneration, type GenerationRequest } from "@/ai/pipeline";
 import { SYSTEM_PROMPT } from "@/ai/prompts";
+import { DIAGRAM_ICONS } from "@/diagrams/icons";
 import { FIXTURES } from "@/diagrams/fixtures";
 import { diagramJsonSchema, MAX_NODES } from "@/diagrams/schema";
 import { createFakeOllama, type FakeOllama } from "@/test/fakeOllama";
@@ -23,6 +24,7 @@ function request(overrides: Partial<GenerationRequest> = {}): GenerationRequest 
     text: "Water evaporates, forms clouds, falls as rain, and flows back to the sea.",
     model: "qwen3:4b",
     detail: "balanced",
+    icons: false,
     requestedType: "auto",
     requestId: "req-1",
     ...overrides,
@@ -293,5 +295,28 @@ describe("follow-up actions", () => {
 
     expect(error.code).toBe("unknown");
     expect(fake.calls).toHaveLength(0);
+  });
+});
+
+describe("image assets toggle", () => {
+  it("never mentions icons when the toggle is off", async () => {
+    const ollama = install({ responses: [JSON.stringify(FIXTURES.flowchart)] });
+
+    await runGeneration(request({ icons: false }));
+
+    const prompt = ollama.calls[0].request.prompt;
+    expect(prompt).not.toMatch(/icon/i);
+  });
+
+  it("offers the icon names only when the toggle is on", async () => {
+    const ollama = install({ responses: [JSON.stringify(FIXTURES.flowchart)] });
+
+    await runGeneration(request({ icons: true }));
+
+    const prompt = ollama.calls[0].request.prompt;
+    expect(prompt).toMatch(/"icon" is optional/);
+    for (const name of DIAGRAM_ICONS) {
+      expect(prompt).toContain(name);
+    }
   });
 });

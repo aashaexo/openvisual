@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DIAGRAM_ICONS } from "@/diagrams/icons";
 
 /**
  * The single source of truth for what a model is allowed to return.
@@ -80,6 +81,10 @@ export const diagramNodeSchema = z.strictObject({
   category: z.string().trim().min(1).max(48).optional(),
   emphasis: z.enum(NODE_EMPHASIS),
   shape: z.enum(NODE_SHAPES),
+  // A name from a closed set, exactly like `shape`: the model is saying what
+  // the node *means*, not what it should look like. The glyph, its colour and
+  // its size are still chosen entirely by the app.
+  icon: z.enum(DIAGRAM_ICONS).optional(),
 });
 
 export const diagramEdgeSchema = z.strictObject({
@@ -187,6 +192,7 @@ export const diagramJsonSchema = {
           category: { type: "string" },
           emphasis: { type: "string", enum: [...NODE_EMPHASIS] },
           shape: { type: "string", enum: [...NODE_SHAPES] },
+          icon: { type: "string", enum: [...DIAGRAM_ICONS] },
         },
         required: ["id", "label", "emphasis", "shape"],
       },

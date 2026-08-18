@@ -6,11 +6,12 @@ import { runGeneration } from "@/ai/pipeline";
 import { layoutDiagram } from "@/diagrams/layout";
 import {
   convertLayoutToExcalidraw,
+  iconFilesFor,
   restyleExcalidrawElements,
 } from "@/diagrams/convertToExcalidraw";
 import type { DiagramSpec, DiagramType } from "@/diagrams/schema";
 import type { DiagramLayout } from "@/diagrams/layouts/types";
-import { getTheme, type ThemeId } from "@/themes";
+import { getTheme, type Appearance, type DiagramTheme, type ThemeId } from "@/themes";
 import { copyPngToClipboard, exportDiagram, type ExportFormat } from "@/export";
 import {
   createProjectId,
@@ -27,6 +28,7 @@ import {
   UNTITLED_PROJECT_NAME,
   UNTITLED_SLIDE_NAME,
 } from "@/storage";
+import type { AppearancePreference } from "@/storage/preferences";
 import { getCanvasApi } from "@/store/canvasBridge";
 import type {
   AppError,
@@ -70,9 +72,14 @@ interface AppStore {
   requestedType: RequestedDiagramType;
   detail: DetailLevel;
   themeId: ThemeId;
+  /** What the user asked for, which may be a standing deferral to the OS. */
+  appearance: AppearancePreference;
+  /** What the chrome is actually painted with right now. */
+  resolvedAppearance: Appearance;
   model: string;
   exportScale: 1 | 2 | 3;
   transparentBackground: boolean;
+  imageAssets: boolean;
 
   /* local model environment */
   ollamaStatus: OllamaStatus | null;
@@ -116,9 +123,11 @@ interface AppStore {
   setRequestedType: (type: RequestedDiagramType) => void;
   setDetail: (detail: DetailLevel) => void;
   setTheme: (theme: ThemeId) => void;
+  setAppearance: (next: AppearancePreference) => void;
   setModel: (model: string) => void;
   setExportScale: (scale: 1 | 2 | 3) => void;
   setTransparentBackground: (value: boolean) => void;
+  setImageAssets: (value: boolean) => void;
   setOnboardingOpen: (open: boolean) => void;
   setProjectName: (name: string) => void;
   completeOnboarding: () => void;
@@ -170,6 +179,44 @@ let controller: AbortController | null = null;
 let applyingScene = false;
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Held once rather than re-queried, so the listener below is attached to the
+ * same MediaQueryList it is later detached from. Null under a test runner or
+ * any host without matchMedia, where "system" simply resolves to light.
+ */
+const darkQuery: MediaQueryList | null =
+  typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia("(prefers-color-scheme: dark)")
+    : null;
+
+let systemAppearanceListener: ((event: MediaQueryListEvent) => void) | null = null;
+
+function resolveAppearance(preference: AppearancePreference): Appearance {
+  if (preference !== "system") return preference;
+  return darkQuery?.matches ? "dark" : "light";
+}
+
+/**
+ * Subscribed only while the preference is "system". Pinning light or dark has
+ * to stop the app moving with the OS, and detaching is also the cleanup — the
+ * previous listener is always removed before another can be attached, so at
+ * most one ever exists.
+ */
+function watchSystemAppearance(preference: AppearancePreference): void {
+  if (!darkQuery) return;
+
+  if (systemAppearanceListener) {
+    darkQuery.removeEventListener("change", systemAppearanceListener);
+    systemAppearanceListener = null;
+  }
+  if (preference !== "system") return;
+
+  systemAppearanceListener = (event) => {
+    useAppStore.setState({ resolvedAppearance: event.matches ? "dark" : "light" });
+  };
+  darkQuery.addEventListener("change", systemAppearanceListener);
+}
+
 const preferences = loadPreferences();
 const firstSlide = blankSlide("Slide 1");
 
@@ -178,9 +225,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   requestedType: preferences.diagramType,
   detail: preferences.detail,
   themeId: preferences.theme,
+  appearance: preferences.appearance,
+  resolvedAppearance: resolveAppearance(preferences.appearance),
   model: preferences.model || DEFAULT_MODEL,
   exportScale: preferences.exportScale,
   transparentBackground: preferences.transparentBackground,
+  imageAssets: preferences.imageAssets,
 
   ollamaStatus: null,
   models: [],
@@ -234,6 +284,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     savePreferences({ transparentBackground });
     set({ transparentBackground });
   },
+  setImageAssets: (imageAssets) => {
+    savePreferences({ imageAssets });
+    set({ imageAssets });
+  },
   setOnboardingOpen: (onboardingOpen) => set({ onboardingOpen }),
   // Typing only updates the field; the rename is persisted on blur.
   setProjectName: (currentProjectName) => set({ currentProjectName }),
@@ -251,11 +305,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // Repaint in place so manual edits and positions survive a theme change.
     const restyled =
       spec && elements.length ? restyleExcalidrawElements(elements, spec, theme) : elements;
-    set({ themeId, elements: restyled });
+    // Restyling repoints each icon at a differently-coloured payload, so the
+    // new files have to travel with it or the glyphs turn into placeholders.
+    const files = spec ? { ...get().files, ...iconFilesFor(spec, theme) } : get().files;
+    set({ themeId, elements: restyled, files });
 
     const api = getCanvasApi();
     if (api) {
       applyingScene = true;
+      if (files) api.addFiles(Object.values(files));
       api.updateScene({
         elements: restyled,
         appState: { viewBackgroundColor: theme.canvas.background },
@@ -265,6 +323,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       });
     }
     if (get().currentProjectId) void get().saveCurrentProject({ silent: true });
+  },
+
+  /*
+   * Appearance touches nothing but the chrome, so unlike setTheme there is no
+   * scene to repaint and nothing to re-save: the diagram is not involved.
+   */
+  setAppearance: (appearance) => {
+    savePreferences({ appearance });
+    watchSystemAppearance(appearance);
+    set({ appearance, resolvedAppearance: resolveAppearance(appearance) });
   },
 
   initialise: async () => {
@@ -340,6 +408,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         model: state.model,
         detail: state.detail,
         requestedType: state.requestedType,
+        icons: state.imageAssets,
         currentSpec: state.spec,
         targetType,
         requestId: createProjectId(),
@@ -370,18 +439,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       const theme = getTheme(get().themeId);
       const layout = await layoutDiagram(spec);
-      const elements = convertLayoutToExcalidraw(spec, layout, theme);
+      const { elements, files } = convertLayoutToExcalidraw(spec, layout, theme);
 
       set({
         spec,
         layout,
         elements,
+        files,
         warnings: options?.warnings ?? [],
         sceneDirty: false,
         currentProjectName: spec.title || get().currentProjectName,
       });
 
-      pushScene(elements, theme.canvas.background);
+      pushScene(elements, theme.canvas.background, files);
     } catch (error) {
       set({ error: toAppError(error, "layout_failed") });
     } finally {
@@ -436,7 +506,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const slide = blankSlide(`Slide ${slides.length + 1}`);
 
     set({ slides: [...slides, slide] });
-    loadSlide(set, slide, getTheme(state.themeId).canvas.background);
+    loadSlide(set, slide, getTheme(state.themeId));
   },
 
   duplicateSlide: (id) => {
@@ -453,7 +523,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const next = [...slides.slice(0, index + 1), copy, ...slides.slice(index + 1)];
 
     set({ slides: next });
-    loadSlide(set, copy, getTheme(state.themeId).canvas.background);
+    loadSlide(set, copy, getTheme(state.themeId));
     void get().saveCurrentProject({ silent: true });
   },
 
@@ -470,7 +540,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     if (state.activeSlideId === id) {
       const neighbour = next[Math.min(index, next.length - 1)];
-      loadSlide(set, neighbour, getTheme(state.themeId).canvas.background);
+      loadSlide(set, neighbour, getTheme(state.themeId));
     }
     void get().saveCurrentProject({ silent: true });
   },
@@ -484,7 +554,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!target) return;
 
     set({ slides });
-    loadSlide(set, target, getTheme(state.themeId).canvas.background);
+    loadSlide(set, target, getTheme(state.themeId));
   },
 
   renameSlide: (id, name) => {
@@ -612,7 +682,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
         error: null,
       });
 
-      pushScene((active?.excalidrawElements ?? []) as ExcalidrawElement[], theme.canvas.background);
+      const files = active?.diagramSpec ? iconFilesFor(active.diagramSpec, theme) : null;
+      set({ files });
+      pushScene(
+        (active?.excalidrawElements ?? []) as ExcalidrawElement[],
+        theme.canvas.background,
+        files,
+      );
     } catch (error) {
       set({ error: toAppError(error, "storage_unavailable") });
     }
@@ -706,6 +782,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 }));
 
+// Attached at module load so an app started on "system" follows the very first
+// OS flip, rather than waiting for a component to mount and subscribe.
+watchSystemAppearance(preferences.appearance);
+
 /**
  * The active slide is edited through the top-level `text`/`spec`/`elements`
  * fields rather than inside the array, so every read of the deck has to fold
@@ -744,8 +824,12 @@ function blankSlide(name: string): SavedSlide {
 function loadSlide(
   set: (partial: Partial<AppStore>) => void,
   slide: SavedSlide,
-  background: string,
+  theme: DiagramTheme,
 ): void {
+  // Icon payloads are not persisted with the slide; they are derived, so they
+  // are rebuilt from the spec rather than stored and migrated.
+  const files = slide.diagramSpec ? iconFilesFor(slide.diagramSpec, theme) : null;
+
   set({
     activeSlideId: slide.id,
     text: slide.originalText,
@@ -753,17 +837,25 @@ function loadSlide(
     layout: null,
     elements: slide.excalidrawElements as ExcalidrawElement[],
     sceneAppState: slide.appState as Partial<ExcalidrawAppState> | null,
+    files,
     warnings: [],
     sceneDirty: false,
   });
-  pushScene(slide.excalidrawElements as ExcalidrawElement[], background);
+  pushScene(slide.excalidrawElements as ExcalidrawElement[], theme.canvas.background, files);
 }
 
-function pushScene(elements: ExcalidrawElement[], background: string): void {
+function pushScene(
+  elements: ExcalidrawElement[],
+  background: string,
+  files: BinaryFiles | null,
+): void {
   const api = getCanvasApi();
   if (!api) return;
 
   applyingScene = true;
+  // Files first: an image element whose payload has not landed yet paints as a
+  // broken placeholder, and nothing re-renders it once the bytes arrive.
+  if (files) api.addFiles(Object.values(files));
   api.updateScene({ elements, appState: { viewBackgroundColor: background } });
   // Let the scene settle before fitting it, otherwise bounds are stale.
   requestAnimationFrame(() => {

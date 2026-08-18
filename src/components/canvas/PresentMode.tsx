@@ -21,6 +21,7 @@ export function PresentMode() {
   const slides = useAppStore((s) => s.slides);
   const activeSlideId = useAppStore((s) => s.activeSlideId);
   const elements = useAppStore((s) => s.elements);
+  const files = useAppStore((s) => s.files);
   const themeId = useAppStore((s) => s.themeId);
 
   const [failed, setFailed] = useState(false);
@@ -60,7 +61,7 @@ export function PresentMode() {
         exportWithDarkMode: false,
         viewBackgroundColor: theme.canvas.background,
       },
-      files: null,
+      files,
       exportPadding: 32,
     })
       .then((svg: SVGSVGElement) => {
@@ -82,7 +83,7 @@ export function PresentMode() {
     return () => {
       cancelled = true;
     };
-  }, [presenting, alive, theme.canvas.background]);
+  }, [presenting, alive, files, theme.canvas.background]);
 
   if (!presenting) return null;
 

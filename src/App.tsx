@@ -11,6 +11,7 @@ export default function App() {
   const [projectsOpen, setProjectsOpen] = useState(false);
 
   const themeId = useAppStore((s) => s.themeId);
+  const appearance = useAppStore((s) => s.resolvedAppearance);
   const initialise = useAppStore((s) => s.initialise);
   const setOnboardingOpen = useAppStore((s) => s.setOnboardingOpen);
 
@@ -48,8 +49,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    applyThemeVariables(getTheme(themeId), document.documentElement);
-  }, [themeId]);
+    applyThemeVariables(getTheme(themeId), appearance, document.documentElement);
+  }, [themeId, appearance]);
 
   return (
     <div className="flex h-full w-full overflow-hidden" style={{ background: "var(--ov-bg)" }}>

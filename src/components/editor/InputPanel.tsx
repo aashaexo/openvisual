@@ -6,6 +6,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Spinner } from "@/components/ui/Spinner";
 import { AlertIcon, FolderIcon, LockIcon, StopIcon, TrashIcon } from "@/components/ui/Icons";
 import { useAppStore } from "@/store/appStore";
+import type { AppearancePreference } from "@/storage/preferences";
 import { THEME_LIST } from "@/themes";
 import type { DetailLevel, RequestedDiagramType } from "@/types";
 
@@ -20,6 +21,12 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const DETAIL_LEVELS: DetailLevel[] = ["simple", "balanced", "detailed"];
+
+const APPEARANCES: { value: AppearancePreference; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
 
 interface InputPanelProps {
   onOpenProjects: () => void;
@@ -37,6 +44,10 @@ export function InputPanel({ onOpenProjects, onOpenSetup }: InputPanelProps) {
   const setDetail = useAppStore((s) => s.setDetail);
   const themeId = useAppStore((s) => s.themeId);
   const setTheme = useAppStore((s) => s.setTheme);
+  const appearance = useAppStore((s) => s.appearance);
+  const imageAssets = useAppStore((s) => s.imageAssets);
+  const setImageAssets = useAppStore((s) => s.setImageAssets);
+  const setAppearance = useAppStore((s) => s.setAppearance);
   const model = useAppStore((s) => s.model);
   const setModel = useAppStore((s) => s.setModel);
   const models = useAppStore((s) => s.models);
@@ -169,6 +180,27 @@ export function InputPanel({ onOpenProjects, onOpenSetup }: InputPanelProps) {
         </div>
 
         <div>
+          <label
+            htmlFor="ov-image-assets"
+            className="flex cursor-pointer items-start justify-between gap-3"
+          >
+            <span className="min-w-0">
+              <span className="ov-field mb-0.5">Image assets</span>
+              <span className="block text-xs" style={{ color: "var(--ov-muted)" }}>
+                Let the model add an icon to nodes that have an obvious one.
+              </span>
+            </span>
+            <input
+              id="ov-image-assets"
+              type="checkbox"
+              className="mt-1 h-4 w-4 shrink-0"
+              checked={imageAssets}
+              onChange={(event) => setImageAssets(event.target.checked)}
+            />
+          </label>
+        </div>
+
+        <div>
           <label htmlFor="ov-theme" className="ov-field">
             Theme
           </label>
@@ -184,6 +216,28 @@ export function InputPanel({ onOpenProjects, onOpenSetup }: InputPanelProps) {
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <span className="ov-field" id="ov-appearance-label">
+            Appearance
+          </span>
+          <div className="ov-segment" role="group" aria-labelledby="ov-appearance-label">
+            {APPEARANCES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={appearance === option.value}
+                onClick={() => setAppearance(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs" style={{ color: "var(--ov-muted)" }}>
+            Colours this app only. Your diagram keeps the theme&apos;s colours, so a dark app can
+            still draw light slides.
+          </p>
         </div>
 
         <div>

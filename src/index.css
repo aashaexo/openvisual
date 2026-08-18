@@ -2,10 +2,22 @@
 @import "@excalidraw/excalidraw/index.css";
 
 /*
- * Theme variables are written onto <html> at runtime by applyThemeVariables().
- * The values here are the Minimal theme, so the first paint is never unstyled.
+ * Chrome variables are written onto <html> at runtime by applyThemeVariables(),
+ * which always wins over both blocks below because it sets them inline.
+ *
+ * These two exist for the frames before that runs. The :root values are the
+ * Minimal theme's light chrome — the default theme, default appearance — so
+ * the first paint is never unstyled; the dark block repeats them because the
+ * default appearance is "system", and a user whose OS is dark would otherwise
+ * get a white flash before JS decided otherwise.
+ *
+ * Only the colours are duplicated. Anything the chrome palettes do not carry
+ * (fonts, sizes, radii, shadow) stays defined once here, where no runtime
+ * value can overwrite it and no appearance can strand a stale one.
  */
 :root {
+  color-scheme: light;
+
   --ov-bg: #f7f7f8;
   --ov-panel: #ffffff;
   --ov-panel-alt: #fafafa;
@@ -43,6 +55,24 @@
   --ov-radius-sm: 4px;
   --ov-radius: 8px;
   --ov-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
+}
+
+/* Minimal's dark chrome, kept in step with THEMES.minimal.chrome.dark. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --ov-bg: #0f1012;
+    --ov-panel: #17181b;
+    --ov-panel-alt: #1f2024;
+    --ov-border: #33353b;
+    --ov-text: #f2f3f5;
+    --ov-muted: #a1a5ad;
+    --ov-accent: #8b90ff;
+    --ov-accent-contrast: #101119;
+    --ov-danger: #f87171;
+    --ov-focus: #a5a9ff;
+  }
 }
 
 html,
@@ -289,9 +319,12 @@ body {
 
 /*
  * Excalidraw's dark mode inverts the canvas so that scenes authored in light
- * colours stay readable. Our themes author their colours directly — the dark
- * theme really is dark — so the inversion is switched off while the dark UI
- * chrome is kept.
+ * colours stay readable. Our themes author their colours directly, so the
+ * inversion is switched off while the dark UI chrome is kept.
+ *
+ * This matters more now that the class follows the app appearance rather than
+ * the diagram theme: without it, choosing a dark app would invert a Minimal
+ * diagram and hand the user a drawing whose exported colours it does not have.
  */
 .excalidraw.theme--dark {
   --theme-filter: none;
